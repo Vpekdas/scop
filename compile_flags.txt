@@ -1,0 +1,2 @@
+-Ithird_party/SDL/include
+-Ithird_party/glad/include
