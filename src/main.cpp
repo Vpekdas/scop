@@ -11,8 +11,8 @@ int main(int ac, char **av) {
     }
     try {
 
-        Render Render;
-        Render.init();
+        // Render Render;
+        // Render.init();
 
         Model Model;
         Model.parse(av[1]);

@@ -3,8 +3,10 @@
 #include <fstream>
 #include <iostream>
 #include <ostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 Model::Model()
     : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _faces(), _smoothingGroups(), _materials() {
@@ -55,71 +57,73 @@ void Model::parse(const std::string &filename) {
     }
 
     std::string line, type;
-    std::size_t spaceIndex = 0, nextSpaceIndex = 0, lastSpaceIndex = 0;
-    float x = 0.0, y = 0.0, z = 0.0;
+    std::size_t start = 0, end = 0;
 
     while (std::getline(infile, line)) {
-        spaceIndex = line.find(" ");
-        type = line.substr(0, spaceIndex);
+        start = line.find(" ");
+        type = line.substr(0, start);
 
         if (type == "o") {
-            _name = line.substr(spaceIndex + 1);
+            _name = line.substr(start + 1);
         }
 
-        else if (type == "v") {
+        else if (type == "v" || type == "vn" || type == "vt") {
+            std::istringstream iss(line.substr(start + 1));
+            std::vector<float> values;
+            float value;
 
-            spaceIndex = line.find(" ", type.length());
-            nextSpaceIndex = line.find(" ", spaceIndex + 1);
-            lastSpaceIndex = line.rfind(" ");
+            while (iss >> value) {
+                values.push_back(value);
+            }
 
-            x = std::stof(line.substr(spaceIndex, nextSpaceIndex));
-
-            spaceIndex = line.find(" ", nextSpaceIndex);
-            nextSpaceIndex = line.find(" ", spaceIndex + 1);
-            y = std::stof(line.substr(spaceIndex, nextSpaceIndex));
-
-            z = std::stof(line.substr(lastSpaceIndex));
-
-            Vector3 vec3(x, y, z);
-            _vertex.push_back(vec3);
-
-        }
-
-        else if (type == "vn") {
-
-            spaceIndex = line.find(" ", type.length());
-            nextSpaceIndex = line.find(" ", spaceIndex + 1);
-            lastSpaceIndex = line.rfind(" ");
-
-            x = std::stof(line.substr(spaceIndex, nextSpaceIndex));
-
-            spaceIndex = line.find(" ", nextSpaceIndex);
-            nextSpaceIndex = line.find(" ", spaceIndex + 1);
-            y = std::stof(line.substr(spaceIndex, nextSpaceIndex));
-
-            z = std::stof(line.substr(lastSpaceIndex));
-
-            Vector3 vec3(x, y, z);
-            _vertexNormals.push_back(vec3);
-        }
-
-        else if (type == "vt") {
-
-            spaceIndex = line.find(" ", type.length());
-            nextSpaceIndex = line.find(" ", spaceIndex + 1);
-            lastSpaceIndex = line.rfind(" ");
-
-            x = std::stof(line.substr(spaceIndex, nextSpaceIndex));
-
-            y = std::stof(line.substr(lastSpaceIndex));
-
-            Vector2 vec2(x, y);
-            _textureCoordinates.push_back(vec2);
+            if (type == "v" || type == "vn") {
+                Vector3 vec3(values[0], values[1], values[2]);
+                if (type == "v") {
+                    _vertex.push_back(vec3);
+                } else {
+                    _vertexNormals.push_back(vec3);
+                }
+            } else if (type == "vt") {
+                Vector2 vec2(values[0], values[1]);
+                _textureCoordinates.push_back(vec2);
+            }
         }
 
         else if (type == "f") {
+            std::vector<int> vertexIndices, textureIndices, normalIndices;
+            std::istringstream iss(line.substr(start + 1));
+            std::string vertex;
 
-            // TODO
+            while (iss >> vertex) {
+                std::istringstream vertexStream(vertex);
+                std::string index;
+                int vertexIndex, textureIndex, normalIndex;
+
+                std::getline(vertexStream, index, '/');
+                vertexIndex = std::stoi(index) - 1;
+                vertexIndices.push_back(vertexIndex);
+
+                if (std::getline(vertexStream, index, '/')) {
+                    if (!index.empty()) {
+                        textureIndex = std::stoi(index) - 1;
+                        textureIndices.push_back(textureIndex);
+                    } else {
+                        textureIndices.push_back(-1);
+                    }
+                }
+
+                if (std::getline(vertexStream, index, '/')) {
+                    if (!index.empty()) {
+                        normalIndex = std::stoi(index) - 1;
+                        normalIndices.push_back(normalIndex);
+                    } else {
+                        normalIndices.push_back(-1);
+                    }
+                }
+            }
+
+            Face face(vertexIndices, textureIndices, normalIndices);
+            _faces.push_back(face);
         }
     }
 }
