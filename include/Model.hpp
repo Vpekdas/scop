@@ -3,7 +3,6 @@
 #include "../include/Face.hpp"
 #include "../include/Vector2.hpp"
 #include "../include/Vector3.hpp"
-#include "../include/Vector4.hpp"
 #include <vector>
 
 class Model {
