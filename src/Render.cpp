@@ -3,6 +3,9 @@
 #include "SDL3/SDL_error.h"
 #include "SDL3/SDL_init.h"
 #include <alloca.h>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 Render::Render() : _window(nullptr), _gl_context(nullptr), _running(true), _vao(0), _vbo(0) {
     std::cout << YELLOW << "🛠️ Default Render Constructor called 🛠️" << RESET << std::endl;
@@ -87,6 +90,30 @@ int Render::createShader(const std::string &vertexShader, const std::string &fra
     return program;
 }
 
+Render::ShaderProgramSource Render::parseShader(const std::string &file) {
+    std::ifstream stream(file);
+
+    std::string line;
+    std::stringstream ss[2];
+
+    ShaderType type = ShaderType::NONE;
+
+    while (std::getline(stream, line)) {
+
+        if (line.find("#shader") != std::string::npos) {
+            if (line.find("vertex") != std::string::npos) {
+                type = ShaderType::VERTEX;
+            } else if (line.find("fragment") != std::string::npos) {
+                type = ShaderType::FRAGMENT;
+            }
+        } else {
+            ss[(int)type] << line << "\n";
+        }
+    }
+
+    return {ss[0].str(), ss[1].str()};
+}
+
 void Render::mainLoop() {
 
     float position[6] = {-0.5f, -0.5f, 0.0f, 0.5f, 0.5f, -0.5f};
@@ -104,27 +131,9 @@ void Render::mainLoop() {
     // Stride -> Number of bytes to get to next vertex.
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    ShaderProgramSource source = parseShader("../res/Basic.glsl");
 
-    const std::string vertexShader = "#version 330 core\n"
-                                     "\n"
-                                     "layout(location = 0) in vec4 position;"
-                                     "\n"
-                                     "void main()\n"
-                                     "{\n"
-                                     "  gl_Position = vec4(position);\n"
-                                     "}\n";
-
-    const std::string fragmentShader = "#version 330 core\n"
-                                       "\n"
-                                       "layout(location = 0) out vec4 color;"
-                                       "\n"
-                                       "void main()\n"
-                                       "{\n"
-                                       "  color = vec4(1.0, 0.0, 0.0, 1.0);\n"
-                                       "}\n";
-
-    unsigned int shader = createShader(vertexShader, fragmentShader);
+    unsigned int shader = createShader(source.vertexSource, source.fragmentSource);
     glUseProgram(shader);
 
     while (_running) {
