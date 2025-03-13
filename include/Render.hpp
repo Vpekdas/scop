@@ -6,6 +6,8 @@
 
 #include <SDL3/SDL_opengl.h>
 
+#include "../include/Model.hpp"
+#include "Matrix4.hpp"
 #include <iostream>
 
 constexpr char W_TITLE[] = "SCOP";
@@ -25,7 +27,7 @@ class Render {
         std::string fragmentSource;
     };
 
-    Render();
+    Render(const std::string &filename);
     ~Render();
     void init();
     void mainLoop();
@@ -39,6 +41,14 @@ class Render {
     bool _running;
     unsigned int _vao;
     unsigned int _vbo;
+    unsigned int _ebo;
+    Model _model;
+
+    GLint _modelMatrixLocation;
+    GLint _projectionMatrixLocation;
+
+    Matrix4 _modelMatrix;
+    Matrix4 _projectionMatrix;
 
     protected:
 };
