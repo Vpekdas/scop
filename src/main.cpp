@@ -11,27 +11,13 @@ int main(int ac, char **av) {
     }
     try {
 
-        // Render Render;
-        // Render.init();
+        Render Render;
+        Render.init();
+        Render.mainLoop();
 
         Model Model;
         Model.parse(av[1]);
 
-        bool running = true;
-
-        while (running) {
-            // Events
-            SDL_Event event;
-
-            while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
-                    running = false;
-                }
-            }
-
-            // Update
-            // Render
-        }
     } catch (std::exception &ex) {
         std::cerr << NEON_RED << ex.what() << RESET << std::endl;
     }
