@@ -122,8 +122,32 @@ void Model::parse(const std::string &filename) {
                 }
             }
 
-            Face face(vertexIndices, textureIndices, normalIndices);
-            _faces.push_back(face);
+            for (int i = 0; i < vertexIndices.size() - 2; i++) {
+                Face face({vertexIndices[0], vertexIndices[i + 1], vertexIndices[i + 2]},
+                          {textureIndices[0], textureIndices[i + 1], textureIndices[i + 2]},
+                          {normalIndices[0], normalIndices[i + 1], normalIndices[i + 2]});
+                _faces.push_back(face);
+            }
+
+            // if (vertexIndices.size() == 3) {
+            //     Face face({vertexIndices[0], vertexIndices[1], vertexIndices[2]}, {}, {});
+            //     _faces.push_back(face);
+            // } else if (vertexIndices.size() == 4) {
+            //     Face face1({vertexIndices[0], vertexIndices[1], vertexIndices[2]}, {}, {});
+            //     Face face2({vertexIndices[0], vertexIndices[2], vertexIndices[3]}, {}, {});
+            //     _faces.push_back(face1);
+            //     _faces.push_back(face2);
+
+            // } else if (vertexIndices.size() == 5) {
+            //     Face face1({vertexIndices[0], vertexIndices[1], vertexIndices[2]}, {}, {});
+            //     Face face2({vertexIndices[0], vertexIndices[2], vertexIndices[3]}, {}, {});
+            //     Face face2({vertexIndices[0], vertexIndices[3], vertexIndices[4]}, {}, {});
+
+            //     _faces.push_back(face1);
+            //     _faces.push_back(face2);
+            // } else {
+            //     // error
+            // }
         }
     }
 }

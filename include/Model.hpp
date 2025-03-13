@@ -4,6 +4,7 @@
 #include "../include/Vector2.hpp"
 #include "../include/Vector3.hpp"
 #include <vector>
+#include <iostream>
 
 class Model {
     public:

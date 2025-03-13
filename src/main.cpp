@@ -11,12 +11,9 @@ int main(int ac, char **av) {
     }
     try {
 
-        Render Render;
+        Render Render(av[1]);
         Render.init();
         Render.mainLoop();
-
-        Model Model;
-        Model.parse(av[1]);
 
     } catch (std::exception &ex) {
         std::cerr << NEON_RED << ex.what() << RESET << std::endl;

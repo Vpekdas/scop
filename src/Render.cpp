@@ -6,9 +6,11 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
-Render::Render() : _window(nullptr), _gl_context(nullptr), _running(true), _vao(0), _vbo(0) {
-    std::cout << YELLOW << "🛠️ Default Render Constructor called 🛠️" << RESET << std::endl;
+Render::Render(const std::string &file)
+    : _window(nullptr), _gl_context(nullptr), _running(true), _vao(0), _vbo(0), _ebo(0) {
+    _model.parse(file);
 }
 
 Render::~Render() {
@@ -16,7 +18,6 @@ Render::~Render() {
     SDL_DestroyWindow(_window);
     SDL_GL_DestroyContext(_gl_context);
     SDL_Quit();
-    std::cout << RED << "🧨 Render Destructor called 🧨" << RESET << std::endl;
 }
 
 void Render::init() {
@@ -84,6 +85,9 @@ int Render::createShader(const std::string &vertexShader, const std::string &fra
     glLinkProgram(program);
     glValidateProgram(program);
 
+    _modelMatrixLocation = glGetUniformLocation(program, "modelMatrix");           // TODO: Check error
+    _projectionMatrixLocation = glGetUniformLocation(program, "projectionMatrix"); // TODO: Check error
+
     glDeleteShader(vs);
     glDeleteShader(fs);
 
@@ -115,32 +119,62 @@ Render::ShaderProgramSource Render::parseShader(const std::string &file) {
 }
 
 void Render::mainLoop() {
+    // clang-format off
+    // float position[] = {
+    //     -0.5,  0.5, 0.0,
+    //      0.5,  0.5, 0.0,
+    //      0.5, -0.5, 0.0,
+    //     -0.5, -0.5, 0.0,
+    // };
+    // GLuint indices[] = {0, 1, 2, 0, 2, 3};
+    // clang-format on
 
-    float position[6] = {-0.5f, -0.5f, 0.0f, 0.5f, 0.5f, -0.5f};
+    std::vector<unsigned int> indices;
+    indices.reserve(_model.getFaces().size() * 3);
+
+    for (auto &face : _model.getFaces()) {
+        indices.push_back(face.getVertexIndices()[0]);
+        indices.push_back(face.getVertexIndices()[1]);
+        indices.push_back(face.getVertexIndices()[2]);
+    }
 
     glGenVertexArrays(1, &_vao);
     glGenBuffers(1, &_vbo);
+    glGenBuffers(1, &_ebo);
 
     glBindVertexArray(_vao);
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
 
     // Choose Static or Dynamic depending on situation. It can effect performance.
-    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), position, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, _model.getVertex().size() * sizeof(Vector3), _model.getVertex().data(),
+                 GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     // Stride -> Number of bytes to get to next vertex.
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vector3), 0);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
     ShaderProgramSource source = parseShader("../res/Basic.glsl");
 
     unsigned int shader = createShader(source.vertexSource, source.fragmentSource);
     glUseProgram(shader);
 
+    Vector3 position(0.0, 0.0, -5.0);
+
+    _projectionMatrix = Matrix4::perspective(70.0, W_WIDTH, W_HEIGHT, 0.01, 10000.0);
+    glUniformMatrix4fv(_projectionMatrixLocation, 1, GL_FALSE, (float *)&_projectionMatrix);
+
     while (_running) {
+        _modelMatrix = Matrix4::translation(position);
+        glUniformMatrix4fv(_modelMatrixLocation, 1, GL_FALSE, (float *)&_modelMatrix);
 
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // glCullFace(GL_BACK);
+        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr);
 
         SDL_Event event;
 

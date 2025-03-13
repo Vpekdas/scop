@@ -3,20 +3,20 @@
 
 Face::Face() : _vertexIndices(), _normalIndices(), _textureIndices() {
 }
-Face::Face(const std::vector<int> &vertexIndices, const std::vector<int> &textureIndices,
-           const std::vector<int> &normalIndices)
+Face::Face(const std::array<int, 3> &vertexIndices, const std::array<int, 3> &textureIndices,
+           const std::array<int, 3> &normalIndices)
     : _vertexIndices(vertexIndices), _normalIndices(normalIndices), _textureIndices(textureIndices) {
 }
 Face::~Face() {
 }
 
-const std::vector<int> &Face::getVertexIndices() const {
+const std::array<int, 3> &Face::getVertexIndices() const {
     return _vertexIndices;
 }
-const std::vector<int> &Face::getTextureIndices() const {
+const std::array<int, 3> &Face::getTextureIndices() const {
     return _textureIndices;
 }
-const std::vector<int> &Face::getNormalIndices() const {
+const std::array<int, 3> &Face::getNormalIndices() const {
     return _normalIndices;
 }
 
