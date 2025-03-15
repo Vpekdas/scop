@@ -8,40 +8,7 @@
 #include <string>
 #include <vector>
 
-Model::Model()
-    : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _faces(), _smoothingGroups(), _materials() {
-    std::cout << YELLOW << "🛠️ Default Model Constructor called 🛠️" << RESET << std::endl;
-}
-
-Model::~Model() {
-    std::cout << RED << "🧨 Model Destructor called 🧨" << RESET << std::endl;
-}
-
-const std::string &Model::getName() const {
-    return _name;
-}
-
-const std::vector<Vector3> &Model::getVertex() const {
-    return _vertex;
-}
-
-const std::vector<Vector3> &Model::getVertexNormals() const {
-    return _vertexNormals;
-}
-
-const std::vector<Vector2> &Model::getTextureCoordinates() const {
-    return _textureCoordinates;
-}
-
-const std::vector<Face> &Model::getFaces() const {
-    return _faces;
-}
-
-const std::vector<int> &Model::getSmoothingGroups() const {
-    return _smoothingGroups;
-}
-const std::vector<std::string> &Model::getMaterials() const {
-    return _materials;
+Model::Model() : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _smoothingGroups(), _materials() {
 }
 
 void Model::parse(const std::string &filename) {
@@ -90,64 +57,36 @@ void Model::parse(const std::string &filename) {
         }
 
         else if (type == "f") {
-            std::vector<int> vertexIndices, textureIndices, normalIndices;
             std::istringstream iss(line.substr(start + 1));
             std::string vertex;
 
             while (iss >> vertex) {
                 std::istringstream vertexStream(vertex);
                 std::string index;
-                int vertexIndex, textureIndex, normalIndex;
+                unsigned int vertexIndex, textureIndex, normalIndex;
 
                 std::getline(vertexStream, index, '/');
-                vertexIndex = std::stoi(index) - 1;
-                vertexIndices.push_back(vertexIndex);
+                vertexIndex = std::stoul(index) - 1;
+                _vertexIndices.push_back(vertexIndex);
 
                 if (std::getline(vertexStream, index, '/')) {
                     if (!index.empty()) {
-                        textureIndex = std::stoi(index) - 1;
-                        textureIndices.push_back(textureIndex);
+                        textureIndex = std::stoul(index) - 1;
+                        _textureCoordinatesIndices.push_back(textureIndex);
                     } else {
-                        textureIndices.push_back(-1);
+                        _textureCoordinatesIndices.push_back(std::numeric_limits<unsigned int>::max());
                     }
                 }
 
                 if (std::getline(vertexStream, index, '/')) {
                     if (!index.empty()) {
-                        normalIndex = std::stoi(index) - 1;
-                        normalIndices.push_back(normalIndex);
+                        normalIndex = std::stoul(index) - 1;
+                        _vertexNormalsIndices.push_back(normalIndex);
                     } else {
-                        normalIndices.push_back(-1);
+                        _vertexNormalsIndices.push_back(std::numeric_limits<unsigned int>::max());
                     }
                 }
             }
-
-            for (int i = 0; i < vertexIndices.size() - 2; i++) {
-                Face face({vertexIndices[0], vertexIndices[i + 1], vertexIndices[i + 2]},
-                          {textureIndices[0], textureIndices[i + 1], textureIndices[i + 2]},
-                          {normalIndices[0], normalIndices[i + 1], normalIndices[i + 2]});
-                _faces.push_back(face);
-            }
-
-            // if (vertexIndices.size() == 3) {
-            //     Face face({vertexIndices[0], vertexIndices[1], vertexIndices[2]}, {}, {});
-            //     _faces.push_back(face);
-            // } else if (vertexIndices.size() == 4) {
-            //     Face face1({vertexIndices[0], vertexIndices[1], vertexIndices[2]}, {}, {});
-            //     Face face2({vertexIndices[0], vertexIndices[2], vertexIndices[3]}, {}, {});
-            //     _faces.push_back(face1);
-            //     _faces.push_back(face2);
-
-            // } else if (vertexIndices.size() == 5) {
-            //     Face face1({vertexIndices[0], vertexIndices[1], vertexIndices[2]}, {}, {});
-            //     Face face2({vertexIndices[0], vertexIndices[2], vertexIndices[3]}, {}, {});
-            //     Face face2({vertexIndices[0], vertexIndices[3], vertexIndices[4]}, {}, {});
-
-            //     _faces.push_back(face1);
-            //     _faces.push_back(face2);
-            // } else {
-            //     // error
-            // }
         }
     }
 }
