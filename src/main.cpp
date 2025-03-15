@@ -1,5 +1,5 @@
 #include "../include/Model.hpp"
-#include "../include/Render.hpp"
+#include "../include/Renderer.hpp"
 #include "../include/colors.hpp"
 #include <iostream>
 
@@ -11,9 +11,9 @@ int main(int ac, char **av) {
     }
     try {
 
-        Render Render(av[1]);
-        Render.init();
-        Render.mainLoop();
+        Renderer Renderer(av[1]);
+
+        Renderer.mainLoop();
 
     } catch (std::exception &ex) {
         std::cerr << NEON_RED << ex.what() << RESET << std::endl;
