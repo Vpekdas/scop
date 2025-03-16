@@ -15,7 +15,6 @@ struct Matrix4 {
         _m[3][3] = v;
     }
 
-
     // https://github.com/g-truc/glm/blob/master/glm/ext/matrix_clip_space.inl
     // perspectiveFovRH_NO
     static Matrix4 perspective(float fov, int width, int height, float near, float far) {
@@ -40,7 +39,6 @@ struct Matrix4 {
         m._m[3][2] = v.z;
         return m;
     }
-
 
     // https://www.geeksforgeeks.org/rotation-matrix/#3d-rotation-matrix
 
@@ -73,6 +71,18 @@ struct Matrix4 {
         m._m[1][0] = sin(rad);
         m._m[1][1] = cos(rad);
         return m;
+    }
+
+    Matrix4 operator*(const Matrix4 &other) const {
+        Matrix4 result(0.0);
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                for (int k = 0; k < 4; ++k) {
+                    result._m[i][j] += _m[i][k] * other._m[k][j];
+                }
+            }
+        }
+        return result;
     }
 
     float _m[4][4] = {};

@@ -8,7 +8,33 @@
 #include <string>
 #include <vector>
 
-Model::Model() : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _smoothingGroups(), _materials() {
+Model::Model()
+    : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _smoothingGroups(), _materials(), _minXVertex(0),
+      _minYVertex(0), _maxXVertex(0), _maxYVertex(0), _center(0, 0, 0) {
+}
+
+void Model::findCenterAxis(float value, Axis axis) {
+    if (axis == X) {
+        if (value < _minXVertex) {
+            _minXVertex = value;
+        }
+        if (value > _maxXVertex) {
+            _maxXVertex = value;
+        }
+    } else if (axis == Y) {
+        if (value < _minYVertex) {
+            _minYVertex = value;
+        }
+        if (value > _maxYVertex) {
+            _maxYVertex = value;
+        }
+    }
+}
+
+void Model::calculateCenterAxis() {
+    float centerX = (_minXVertex + _maxXVertex) / 2.0f;
+    float centerY = (_minYVertex + _maxYVertex) / 2.0f;
+    _center = Vector3(centerX, centerY, 0.0f);
 }
 
 void Model::parse(const std::string &filename) {
@@ -44,8 +70,11 @@ void Model::parse(const std::string &filename) {
             }
 
             if (type == "v" || type == "vn") {
+
                 Vector3 vec3(values[0], values[1], values[2]);
                 if (type == "v") {
+                    findCenterAxis(values[0], X);
+                    findCenterAxis(values[1], Y);
                     _vertex.push_back(vec3);
                 } else {
                     _vertexNormals.push_back(vec3);
@@ -74,7 +103,7 @@ void Model::parse(const std::string &filename) {
                         textureIndex = std::stoul(index) - 1;
                         _textureCoordinatesIndices.push_back(textureIndex);
                     } else {
-                        _textureCoordinatesIndices.push_back(std::numeric_limits<unsigned int>::max());
+                        // TODO: Handle if no texture coordinate.
                     }
                 }
 
@@ -83,7 +112,7 @@ void Model::parse(const std::string &filename) {
                         normalIndex = std::stoul(index) - 1;
                         _vertexNormalsIndices.push_back(normalIndex);
                     } else {
-                        _vertexNormalsIndices.push_back(std::numeric_limits<unsigned int>::max());
+                        // TODO: Handle if no vertices normals.
                     }
                 }
             }

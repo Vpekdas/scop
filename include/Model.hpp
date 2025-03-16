@@ -6,8 +6,15 @@
 
 class Model {
     public:
+    enum Axis {
+        X = 0,
+        Y = 1,
+    };
+
     Model();
     void parse(const std::string &filename);
+    void findCenterAxis(float value, Axis axis);
+    void calculateCenterAxis();
 
     // o
     std::string _name;
@@ -25,4 +32,11 @@ class Model {
     std::vector<int> _smoothingGroups;
     // usemtl
     std::vector<std::string> _materials;
+
+    float _minXVertex;
+    float _minYVertex;
+    float _maxXVertex;
+    float _maxYVertex;
+
+    Vector3 _center;
 };

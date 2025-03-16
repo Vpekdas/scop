@@ -6,11 +6,9 @@ layout(location = 0) in vec4 position;
 uniform mat4 u_ModelMatrix;
 uniform mat4 u_ViewMatrix;
 uniform mat4 u_ProjectionMatrix;
-uniform mat4 u_RotationMatrix;
 
 void main() {
-    mat4 model = u_ModelMatrix * u_RotationMatrix;
-    mat4 MVP = u_ProjectionMatrix * u_ViewMatrix * model;
+    mat4 MVP = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix;
     gl_Position = MVP * position;
 }
 
