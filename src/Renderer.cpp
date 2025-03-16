@@ -84,16 +84,40 @@ void Renderer::mainLoop() {
     // Create and bind Vertex Buffer.
     VertexBuffer vb(_model._vertex.data(), _model._vertex.size() * sizeof(Vector3));
 
+    // Create Vertex Array.
     GlCall(glEnableVertexAttribArray(0));
     GlCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vector3), 0));
 
     // Create and bind Vertex Indices Buffer.
     IndexBuffer ib(_model._vertexIndices.data(), _model._vertexIndices.size());
 
-    Vector3 translationVector(0.0f, 0.0f, -30.0f);
-    Matrix4 modelMatrix = Matrix4::translation(translationVector);
-    Matrix4 viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, 0.0f));
+    float r = 0.0f;
+    float increment = 0.05f;
+    float angle = 0.0f;
+
+    // Set Initial Camera position.
+    Matrix4 viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, -10.0f));
+
     Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 100.0f);
+
+    _model.calculateCenterAxis();
+
+    // Transform origin to 0.0f, 0.0f, 0.0f.
+    Vector3 center = _model._center;
+    center.x -= center.x;
+    center.y -= center.y;
+    center.z -= center.z;
+
+    // Move to 0.0f 0.0f 0.0f.
+    Matrix4 translateToOrigin = Matrix4::translation(center);
+
+    // Apply rotation.
+    Matrix4 rotationMatrix = Matrix4::rotationY(angle);
+
+    // Move back to inital position.
+    Matrix4 translateBack = Matrix4::translation(_model._center);
+
+    Matrix4 modelMatrix = translateBack * rotationMatrix * translateToOrigin;
 
     Shader shader("../res/Basic.glsl");
     shader.Bind();
@@ -107,26 +131,26 @@ void Renderer::mainLoop() {
     ib.Unbind();
     shader.Unbind();
 
-    float r = 0.0f;
-    float increment = 0.05f;
-    float angle = 0.0f;
-
     while (_running) {
 
         GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
+        // Move to 0.0f 0.0f 0.0f.
+        Matrix4 translateToOrigin = Matrix4::translation(center);
+
+        // Apply rotation.
         Matrix4 rotationMatrix = Matrix4::rotationY(angle);
-        Matrix4 modelMatrix = Matrix4::translation(translationVector);
+
+        Matrix4 modelMatrix = translateBack * rotationMatrix * translateToOrigin;
 
         shader.Bind();
         shader.setUniform4f("u_Color", r, 0.3f, 0.8f, 1.0f);
         shader.setUniformMat4f("u_ModelMatrix", modelMatrix);
-        shader.setUniformMat4f("u_RotationMatrix", rotationMatrix);
 
         GlCall(glBindVertexArray(_vao));
         ib.Bind();
 
-        // GlCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+        GlCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
 
         GlCall(glDrawElements(GL_TRIANGLES, _model._vertexIndices.size(), GL_UNSIGNED_INT, nullptr));
 
