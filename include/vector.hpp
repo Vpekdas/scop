@@ -9,5 +9,9 @@ struct Vector2 {
 struct Vector3 {
     Vector3(float x, float y, float z);
 
+    Vector3 operator-() const {
+        return Vector3(-x, -y, -z);
+    }
+
     float x, y, z;
 };

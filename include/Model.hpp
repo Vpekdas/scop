@@ -9,12 +9,12 @@ class Model {
     enum Axis {
         X = 0,
         Y = 1,
+        Z = 2,
     };
 
     Model();
     void parse(const std::string &filename);
-    void findCenterAxis(float value, Axis axis);
-    void calculateCenterAxis();
+    void calculateCentroid();
 
     // o
     std::string _name;
@@ -33,10 +33,5 @@ class Model {
     // usemtl
     std::vector<std::string> _materials;
 
-    float _minXVertex;
-    float _minYVertex;
-    float _maxXVertex;
-    float _maxYVertex;
-
-    Vector3 _center;
+    Vector3 _centroid;
 };

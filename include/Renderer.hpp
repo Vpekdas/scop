@@ -28,13 +28,16 @@ constexpr int W_HEIGHT = 720;
     x;                                                                                                                 \
     ASSERT(GlLogCall(#x, __FILE__, __LINE__))
 
+// Extract OpenGL errors contained in queue.
 void GlClearError();
+// DIsplay OpenGl error code, function name and line.
 bool GlLogCall(const char *function, const char *file, unsigned int line);
 
 class Renderer {
     public:
     Renderer(const std::string &filename);
     ~Renderer();
+
     void mainLoop();
 
     private:
