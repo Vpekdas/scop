@@ -93,7 +93,7 @@ void Model::parse(const std::string &filename) {
     }
 
     std::string line, type;
-    std::size_t start = 0, end = 0;
+    std::size_t start = 0;
 
     while (std::getline(infile, line)) {
         start = line.find(" ");

@@ -6,12 +6,7 @@
 
 class Model {
     public:
-    enum Axis {
-        X = 0,
-        Y = 1,
-        Z = 2,
-    };
-
+    
     Model();
     void parse(const std::string &filename);
     void calculateCentroid();
