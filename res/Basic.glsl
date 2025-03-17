@@ -15,10 +15,11 @@ void main() {
 #shader fragment
 #version 330 core
 
-uniform vec4 u_Color;
-
 layout(location = 0) out vec4 color;
 
 void main() {
-    color = u_Color;
+    float r = float((gl_PrimitiveID % 3) == 0);
+    float g = float((gl_PrimitiveID % 3) == 1);
+    float b = float((gl_PrimitiveID % 3) == 2);
+    color = vec4(r, g, b, 1.0);
 }

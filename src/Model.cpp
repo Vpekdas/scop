@@ -9,32 +9,18 @@
 #include <vector>
 
 Model::Model()
-    : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _smoothingGroups(), _materials(), _minXVertex(0),
-      _minYVertex(0), _maxXVertex(0), _maxYVertex(0), _center(0, 0, 0) {
+    : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _smoothingGroups(), _materials(),
+      _centroid(0, 0, 0) {
 }
 
-void Model::findCenterAxis(float value, Axis axis) {
-    if (axis == X) {
-        if (value < _minXVertex) {
-            _minXVertex = value;
-        }
-        if (value > _maxXVertex) {
-            _maxXVertex = value;
-        }
-    } else if (axis == Y) {
-        if (value < _minYVertex) {
-            _minYVertex = value;
-        }
-        if (value > _maxYVertex) {
-            _maxYVertex = value;
-        }
+void Model::calculateCentroid() {
+    Vector3 sum(0, 0, 0);
+    for (const auto &vertex : _vertex) {
+        sum.x += vertex.x;
+        sum.y += vertex.y;
+        sum.z += vertex.z;
     }
-}
-
-void Model::calculateCenterAxis() {
-    float centerX = (_minXVertex + _maxXVertex) / 2.0f;
-    float centerY = (_minYVertex + _maxYVertex) / 2.0f;
-    _center = Vector3(centerX, centerY, 0.0f);
+    _centroid = Vector3(sum.x / _vertex.size(), sum.y / _vertex.size(), sum.z / _vertex.size());
 }
 
 void Model::parse(const std::string &filename) {
@@ -73,8 +59,7 @@ void Model::parse(const std::string &filename) {
 
                 Vector3 vec3(values[0], values[1], values[2]);
                 if (type == "v") {
-                    findCenterAxis(values[0], X);
-                    findCenterAxis(values[1], Y);
+
                     _vertex.push_back(vec3);
                 } else {
                     _vertexNormals.push_back(vec3);
@@ -87,32 +72,77 @@ void Model::parse(const std::string &filename) {
 
         else if (type == "f") {
             std::istringstream iss(line.substr(start + 1));
+            std::vector<std::string> vertices;
             std::string vertex;
 
             while (iss >> vertex) {
-                std::istringstream vertexStream(vertex);
-                std::string index;
-                unsigned int vertexIndex, textureIndex, normalIndex;
+                vertices.push_back(vertex);
+            }
 
-                std::getline(vertexStream, index, '/');
-                vertexIndex = std::stoul(index) - 1;
-                _vertexIndices.push_back(vertexIndex);
+            // Triangulate if there is more than 3 faces.
+            if (vertices.size() > 3) {
+                for (size_t i = 1; i < vertices.size() - 1; i++) {
+                    std::vector<unsigned int> indices;
+                    for (size_t i = 1; i < vertices.size() - 1; i++) {
+                        std::vector<unsigned int> indices;
 
-                if (std::getline(vertexStream, index, '/')) {
-                    if (!index.empty()) {
-                        textureIndex = std::stoul(index) - 1;
-                        _textureCoordinatesIndices.push_back(textureIndex);
-                    } else {
-                        // TODO: Handle if no texture coordinate.
+                        size_t faceIndices[] = {0, i, i + 1};
+                        for (size_t j = 0; j < 3; ++j) {
+                            std::istringstream vertexStream(vertices[faceIndices[j]]);
+                            std::string index;
+                            unsigned int vertexIndex, textureIndex, normalIndex;
+
+                            std::getline(vertexStream, index, '/');
+                            vertexIndex = std::stoul(index) - 1;
+                            indices.push_back(vertexIndex);
+                            _vertexIndices.push_back(vertexIndex);
+
+                            if (std::getline(vertexStream, index, '/')) {
+                                if (!index.empty()) {
+                                    textureIndex = std::stoul(index) - 1;
+                                    _textureCoordinatesIndices.push_back(textureIndex);
+                                } else {
+                                    // TODO: Calculate if no texture coordinate.
+                                }
+                            }
+
+                            if (std::getline(vertexStream, index, '/')) {
+                                if (!index.empty()) {
+                                    normalIndex = std::stoul(index) - 1;
+                                    _vertexNormalsIndices.push_back(normalIndex);
+                                } else {
+                                    // TODO: Calculate if no vertices normals.
+                                }
+                            }
+                        }
                     }
                 }
+            } else {
+                for (const auto &vertex : vertices) {
+                    std::istringstream vertexStream(vertex);
+                    std::string index;
+                    unsigned int vertexIndex, textureIndex, normalIndex;
 
-                if (std::getline(vertexStream, index, '/')) {
-                    if (!index.empty()) {
-                        normalIndex = std::stoul(index) - 1;
-                        _vertexNormalsIndices.push_back(normalIndex);
-                    } else {
-                        // TODO: Handle if no vertices normals.
+                    std::getline(vertexStream, index, '/');
+                    vertexIndex = std::stoul(index) - 1;
+                    _vertexIndices.push_back(vertexIndex);
+
+                    if (std::getline(vertexStream, index, '/')) {
+                        if (!index.empty()) {
+                            textureIndex = std::stoul(index) - 1;
+                            _textureCoordinatesIndices.push_back(textureIndex);
+                        } else {
+                            // TODO: Calculate if no texture coordinate.
+                        }
+                    }
+
+                    if (std::getline(vertexStream, index, '/')) {
+                        if (!index.empty()) {
+                            normalIndex = std::stoul(index) - 1;
+                            _vertexNormalsIndices.push_back(normalIndex);
+                        } else {
+                            // TODO: Calculate if no vertices normals.
+                        }
                     }
                 }
             }

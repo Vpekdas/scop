@@ -73,9 +73,14 @@ Renderer::~Renderer() {
 
 void Renderer::mainLoop() {
 
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
+    GlCall(glEnable(GL_CULL_FACE));
+    GlCall(glCullFace(GL_BACK));
+    GlCall(glFrontFace(GL_CCW));
+
+    // Enable Depth Testing to ensure that depth is rendered correctly.
+    // Ex: A face should not be visible on top of another face if it's behind.
+    GlCall(glEnable(GL_DEPTH_TEST));
+    GlCall(glDepthFunc(GL_LESS));
 
     // Create and bind Vertex Array.
     GlCall(glGenVertexArrays(1, &_vao));
@@ -91,38 +96,20 @@ void Renderer::mainLoop() {
     // Create and bind Vertex Indices Buffer.
     IndexBuffer ib(_model._vertexIndices.data(), _model._vertexIndices.size());
 
-    float r = 0.0f;
     float increment = 0.05f;
     float angle = 0.0f;
 
     // Set Initial Camera position.
     Matrix4 viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, -10.0f));
-
     Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 100.0f);
 
-    _model.calculateCenterAxis();
+    _model.calculateCentroid();
 
-    // Transform origin to 0.0f, 0.0f, 0.0f.
-    Vector3 center = _model._center;
-    center.x -= center.x;
-    center.y -= center.y;
-    center.z -= center.z;
-
-    // Move to 0.0f 0.0f 0.0f.
-    Matrix4 translateToOrigin = Matrix4::translation(center);
-
-    // Apply rotation.
-    Matrix4 rotationMatrix = Matrix4::rotationY(angle);
-
-    // Move back to inital position.
-    Matrix4 translateBack = Matrix4::translation(_model._center);
-
-    Matrix4 modelMatrix = translateBack * rotationMatrix * translateToOrigin;
+    // Get the centroid of the model.
+    Vector3 centroid = _model._centroid;
 
     Shader shader("../res/Basic.glsl");
     shader.Bind();
-    shader.setUniform4f("u_Color", 0.8f, 0.3f, 0.8f, 1.0f);
-    shader.setUniformMat4f("u_ModelMatrix", modelMatrix);
     shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     shader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
 
@@ -135,32 +122,25 @@ void Renderer::mainLoop() {
 
         GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-        // Move to 0.0f 0.0f 0.0f.
-        Matrix4 translateToOrigin = Matrix4::translation(center);
+        // Translate to origin 0, 0, 0.
+        Matrix4 translateToOrigin = Matrix4::translation(-centroid);
 
         // Apply rotation.
         Matrix4 rotationMatrix = Matrix4::rotationY(angle);
 
-        Matrix4 modelMatrix = translateBack * rotationMatrix * translateToOrigin;
+        // Translate back to original position.
+        Matrix4 translateBack = Matrix4::translation(centroid);
+
+        Matrix4 modelMatrix = translateToOrigin * rotationMatrix * translateBack;
 
         shader.Bind();
-        shader.setUniform4f("u_Color", r, 0.3f, 0.8f, 1.0f);
         shader.setUniformMat4f("u_ModelMatrix", modelMatrix);
 
         GlCall(glBindVertexArray(_vao));
         ib.Bind();
 
-        GlCall(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
-
         GlCall(glDrawElements(GL_TRIANGLES, _model._vertexIndices.size(), GL_UNSIGNED_INT, nullptr));
 
-        if (r > 1.0f) {
-            increment = -0.05f;
-        } else if (r < 0.0f) {
-            increment = 0.05f;
-        }
-
-        r += increment;
         angle += 0.5f;
 
         SDL_Event event;

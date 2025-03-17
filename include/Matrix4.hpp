@@ -42,7 +42,6 @@ struct Matrix4 {
 
     // https://www.geeksforgeeks.org/rotation-matrix/#3d-rotation-matrix
 
-    // TODO: Overload operator for multypling vector.
     static Matrix4 rotationX(float angle) {
         Matrix4 m(1.0);
         float rad = angle * M_PI / 180.0;
@@ -52,13 +51,12 @@ struct Matrix4 {
         m._m[2][2] = cos(rad);
         return m;
     }
-
     static Matrix4 rotationY(float angle) {
         Matrix4 m(1.0);
         float rad = angle * M_PI / 180.0;
         m._m[0][0] = cos(rad);
-        m._m[0][2] = sin(rad);
-        m._m[2][0] = -sin(rad);
+        m._m[0][2] = -sin(rad);
+        m._m[2][0] = sin(rad);
         m._m[2][2] = cos(rad);
         return m;
     }
