@@ -2,6 +2,7 @@
 #include "../include/colors.hpp"
 #include "../include/vector.hpp"
 #include "SDL3/SDL_error.h"
+#include "SDL3/SDL_events.h"
 #include "SDL3/SDL_init.h"
 #include <alloca.h>
 #include <fstream>
@@ -75,11 +76,10 @@ Renderer::~Renderer() {
 void Renderer::mainLoop() {
 
     GlCall(glEnable(GL_CULL_FACE));
-    GlCall(glCullFace(GL_BACK));
-    GlCall(glFrontFace(GL_CCW));
 
     // Enable Depth Testing to ensure that depth is rendered correctly.
     // Ex: A face should not be visible on top of another face if it's behind.
+
     GlCall(glEnable(GL_DEPTH_TEST));
     GlCall(glDepthFunc(GL_LESS));
 
@@ -105,7 +105,6 @@ void Renderer::mainLoop() {
     // Create and bind Vertex Indices Buffer.
     IndexBuffer ib(_model._vertexIndices.data(), _model._vertexIndices.size());
 
-    float increment = 0.05f;
     float angle = 0.0f;
 
     // Set Initial Camera position.
@@ -135,6 +134,15 @@ void Renderer::mainLoop() {
     shader.Unbind();
 
     while (_running) {
+        angle += 0.5f;
+
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
+                _running = false;
+            } else if (event.type == SDL_EVENT_KEY_DOWN) {
+            }
+        }
 
         GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
@@ -158,15 +166,6 @@ void Renderer::mainLoop() {
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         GlCall(glDrawElements(GL_TRIANGLES, _model._vertexIndices.size(), GL_UNSIGNED_INT, nullptr));
-
-        angle += 0.5f;
-
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
-                _running = false;
-            }
-        }
 
         SDL_GL_SwapWindow(_window);
     }
