@@ -11,6 +11,7 @@
 
 #include "../include/IndexBuffer.hpp"
 #include "../include/Shader.hpp"
+#include "../include/Texture.hpp"
 #include "../include/VertexBuffer.hpp"
 
 void GlClearError() {
@@ -82,16 +83,24 @@ void Renderer::mainLoop() {
     GlCall(glEnable(GL_DEPTH_TEST));
     GlCall(glDepthFunc(GL_LESS));
 
+    GlCall(glEnable(GL_BLEND));
+    GlCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
+
     // Create and bind Vertex Array.
     GlCall(glGenVertexArrays(1, &_vao));
     GlCall(glBindVertexArray(_vao));
 
     // Create and bind Vertex Buffer.
-    VertexBuffer vb(_model._vertex.data(), _model._vertex.size() * sizeof(Vector3));
+    VertexBuffer vb(_model._combinedVertexBuffer.data(), _model._combinedVertexBuffer.size() * sizeof(float));
 
-    // Create Vertex Array.
+    // Set up vertex attribute pointers.
+    // Vertex positions (attribute 0)
     GlCall(glEnableVertexAttribArray(0));
-    GlCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vector3), 0));
+    GlCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (const void *)(0)));
+
+    // Texture coordinates (attribute 1)
+    GlCall(glEnableVertexAttribArray(1));
+    GlCall(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (const void *)(3 * sizeof(float))));
 
     // Create and bind Vertex Indices Buffer.
     IndexBuffer ib(_model._vertexIndices.data(), _model._vertexIndices.size());
@@ -100,7 +109,7 @@ void Renderer::mainLoop() {
     float angle = 0.0f;
 
     // Set Initial Camera position.
-    Matrix4 viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, -10.0f));
+    Matrix4 viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, -5.0f));
     Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 100.0f);
 
     _model.calculateCentroid();
@@ -112,6 +121,13 @@ void Renderer::mainLoop() {
     shader.Bind();
     shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     shader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
+
+    Texture texture("../models/test3.tga");
+
+    texture.Bind();
+
+    // 0 because slot 0.
+    shader.setUniform1i("u_Texture", 0);
 
     GlCall(glBindVertexArray(0));
     vb.Unbind();
@@ -138,6 +154,8 @@ void Renderer::mainLoop() {
 
         GlCall(glBindVertexArray(_vao));
         ib.Bind();
+
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         GlCall(glDrawElements(GL_TRIANGLES, _model._vertexIndices.size(), GL_UNSIGNED_INT, nullptr));
 

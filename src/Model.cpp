@@ -23,6 +23,57 @@ void Model::calculateCentroid() {
     _centroid = Vector3(sum.x / _vertex.size(), sum.y / _vertex.size(), sum.z / _vertex.size());
 }
 
+void Model::calculateTextureCoordinates() {
+    if (_vertex.empty())
+        return;
+
+    // Determine the bounding box
+    Vector3 min = _vertex[0];
+    Vector3 max = _vertex[0];
+    for (const auto &vertex : _vertex) {
+        if (vertex.x < min.x)
+            min.x = vertex.x;
+        if (vertex.y < min.y)
+            min.y = vertex.y;
+        if (vertex.z < min.z)
+            min.z = vertex.z;
+        if (vertex.x > max.x)
+            max.x = vertex.x;
+        if (vertex.y > max.y)
+            max.y = vertex.y;
+        if (vertex.z > max.z)
+            max.z = vertex.z;
+    }
+
+    // Normalize vertex positions to [0, 1] and assign as texture coordinates
+    for (const auto &vertex : _vertex) {
+        float u = (vertex.x - min.x) / (max.x - min.x);
+        float v = (vertex.y - min.y) / (max.y - min.y);
+        Vector2 texCoord(u, v);
+        _textureCoordinates.push_back(texCoord);
+    }
+
+    _textureCoordinatesIndices.resize(_vertex.size());
+    for (size_t i = 0; i < _vertex.size(); ++i) {
+        _textureCoordinatesIndices[i] = i;
+    }
+}
+
+void Model::createCombinedVertexBuffer() {
+
+    for (size_t i = 0; i < _vertex.size(); i++) {
+
+        const Vector3 &vertex = _vertex[i];
+        const Vector2 &texCoord = _textureCoordinates[i];
+
+        _combinedVertexBuffer.push_back(vertex.x);
+        _combinedVertexBuffer.push_back(vertex.y);
+        _combinedVertexBuffer.push_back(vertex.z);
+        _combinedVertexBuffer.push_back(texCoord.x);
+        _combinedVertexBuffer.push_back(texCoord.y);
+    }
+}
+
 void Model::parse(const std::string &filename) {
     if (filename.find(".obj") == std::string::npos) {
         throw std::runtime_error(NEON_RED "Error: file is not an obj." RESET);
@@ -101,8 +152,6 @@ void Model::parse(const std::string &filename) {
                                 if (!index.empty()) {
                                     textureIndex = std::stoul(index) - 1;
                                     _textureCoordinatesIndices.push_back(textureIndex);
-                                } else {
-                                    // TODO: Calculate if no texture coordinate.
                                 }
                             }
 
@@ -110,8 +159,6 @@ void Model::parse(const std::string &filename) {
                                 if (!index.empty()) {
                                     normalIndex = std::stoul(index) - 1;
                                     _vertexNormalsIndices.push_back(normalIndex);
-                                } else {
-                                    // TODO: Calculate if no vertices normals.
                                 }
                             }
                         }
@@ -131,8 +178,6 @@ void Model::parse(const std::string &filename) {
                         if (!index.empty()) {
                             textureIndex = std::stoul(index) - 1;
                             _textureCoordinatesIndices.push_back(textureIndex);
-                        } else {
-                            // TODO: Calculate if no texture coordinate.
                         }
                     }
 
@@ -140,12 +185,16 @@ void Model::parse(const std::string &filename) {
                         if (!index.empty()) {
                             normalIndex = std::stoul(index) - 1;
                             _vertexNormalsIndices.push_back(normalIndex);
-                        } else {
-                            // TODO: Calculate if no vertices normals.
                         }
                     }
                 }
             }
         }
     }
+
+    if (_textureCoordinates.empty()) {
+        calculateTextureCoordinates();
+    }
+
+    createCombinedVertexBuffer();
 }

@@ -2,6 +2,8 @@
 
 #include <glad/glad.h>
 
+#include "../include/vector.hpp"
+
 class VertexBuffer {
     public:
     VertexBuffer(const void *data, unsigned int size);

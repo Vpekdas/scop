@@ -11,6 +11,7 @@ add_executable(scop
     src/Model.cpp
     src/Renderer.cpp
     src/Shader.cpp
+    src/Texture.cpp
     src/vector.cpp
     src/VertexBuffer.cpp
     third_party/glad/src/glad.c
