@@ -45,7 +45,9 @@ void Model::calculateTextureCoordinates() {
             max.z = vertex.z;
     }
 
-    // Normalize vertex positions to [0, 1] and assign as texture coordinates
+    std::cout << "Bounding Box Min: (" << min.x << ", " << min.y << ", " << min.z << ")\n";
+    std::cout << "Bounding Box Max: (" << max.x << ", " << max.y << ", " << max.z << ")\n";
+
     for (const auto &vertex : _vertex) {
         float u = (vertex.x - min.x) / (max.x - min.x);
         float v = (vertex.y - min.y) / (max.y - min.y);
@@ -56,6 +58,10 @@ void Model::calculateTextureCoordinates() {
     _textureCoordinatesIndices.resize(_vertex.size());
     for (size_t i = 0; i < _vertex.size(); ++i) {
         _textureCoordinatesIndices[i] = i;
+    }
+
+    for (const auto &texCoord : _textureCoordinates) {
+        std::cout << "Texture Coordinate: (" << texCoord.x << ", " << texCoord.y << ")\n";
     }
 }
 

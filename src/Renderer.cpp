@@ -122,7 +122,7 @@ void Renderer::mainLoop() {
     shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     shader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
 
-    Texture texture("../models/test3.tga");
+    Texture texture("../models/test.tga");
 
     texture.Bind();
 
