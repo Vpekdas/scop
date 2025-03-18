@@ -15,6 +15,8 @@ class Model {
     Model();
     void parse(const std::string &filename);
     void calculateCentroid();
+    void calculateTextureCoordinates();
+    void createCombinedVertexBuffer();
 
     // o
     std::string _name;
@@ -32,6 +34,8 @@ class Model {
     std::vector<int> _smoothingGroups;
     // usemtl
     std::vector<std::string> _materials;
+
+    std::vector<float> _combinedVertexBuffer;
 
     Vector3 _centroid;
 };
