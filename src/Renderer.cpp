@@ -1,19 +1,16 @@
 #include "../include/Renderer.hpp"
-#include "../include/colors.hpp"
-#include "../include/vector.hpp"
-#include "SDL3/SDL_error.h"
-#include "SDL3/SDL_events.h"
-#include "SDL3/SDL_init.h"
-#include <alloca.h>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-
 #include "../include/IndexBuffer.hpp"
 #include "../include/Shader.hpp"
 #include "../include/Texture.hpp"
 #include "../include/VertexBuffer.hpp"
+#include "../include/colors.hpp"
+#include "../include/vector.hpp"
+#include "SDL3/SDL_keycode.h"
+
+#include <alloca.h>
+#include <iterator>
+#include <string>
+#include <vector>
 
 void GlClearError() {
     while (glGetError() != GL_NO_ERROR)
@@ -28,7 +25,10 @@ bool GlLogCall(const char *function, const char *file, unsigned int line) {
     return true;
 }
 
-Renderer::Renderer(const std::string &file) : _window(nullptr), _gl_context(nullptr), _running(true), _vao(0) {
+Renderer::Renderer(const std::string &file, const std::string &texturePath)
+    : _window(nullptr), _gl_context(nullptr), _vao(0), _model(), _texturePath(texturePath), _running(true),
+      _textureMode(false) {
+
     _model.parse(file);
 
     if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO)) {
@@ -55,7 +55,7 @@ Renderer::Renderer(const std::string &file) : _window(nullptr), _gl_context(null
 
     SDL_GL_MakeCurrent(_window, _gl_context);
 
-    // Limiting frame rate.
+    // Limiting frame rate (VSync).
     SDL_GL_SetSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
@@ -67,7 +67,6 @@ Renderer::Renderer(const std::string &file) : _window(nullptr), _gl_context(null
 }
 
 Renderer::~Renderer() {
-
     SDL_DestroyWindow(_window);
     SDL_GL_DestroyContext(_gl_context);
     SDL_Quit();
@@ -79,7 +78,6 @@ void Renderer::mainLoop() {
 
     // Enable Depth Testing to ensure that depth is rendered correctly.
     // Ex: A face should not be visible on top of another face if it's behind.
-
     GlCall(glEnable(GL_DEPTH_TEST));
     GlCall(glDepthFunc(GL_LESS));
 
@@ -108,43 +106,87 @@ void Renderer::mainLoop() {
     float angle = 0.0f;
 
     // Set Initial Camera position.
-    Matrix4 viewMatrix = Matrix4::translation(Vector3(0.0f, 0.0f, -5.0f));
-    Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 100.0f);
+    Vector3 camera(0, 0, 5);
+    Matrix4 viewMatrix = Matrix4::translation(-camera);
+    Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
 
     _model.calculateCentroid();
 
     // Get the centroid of the model.
     Vector3 centroid = _model._centroid;
 
-    Shader shader("../res/Basic.glsl");
-    shader.Bind();
-    shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
-    shader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
+    Shader _faceShader("../res/Face.glsl");
+    _faceShader.Bind();
+    _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
+    _faceShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
+    _faceShader.Unbind();
 
-    Texture texture("../models/test.tga");
-
+    Shader _texturedShader("../res/Textured.glsl");
+    _texturedShader.Bind();
+    _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
+    _texturedShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
+    Texture texture(_texturePath);
     texture.Bind();
-
     // 0 because slot 0.
-    shader.setUniform1i("u_Texture", 0);
+    _texturedShader.setUniform1i("u_Texture", 0);
 
     GlCall(glBindVertexArray(0));
     vb.Unbind();
     ib.Unbind();
-    shader.Unbind();
+    _faceShader.Unbind();
+    _texturedShader.Unbind();
 
     while (_running) {
-        angle += 0.5f;
+
+        unsigned int pPressed = 0;
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
                 _running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN) {
+                // TODO: Refactor this.
+                if (event.key.key == SDLK_T) {
+                    _textureMode = true;
+                }
+                if (event.key.key == SDLK_F) {
+                    _textureMode = false;
+                }
+                if (event.key.key == SDLK_P) {
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+                }
+                if (event.key.key == SDLK_L) {
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                }
+                if (event.key.key == SDLK_C) {
+                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+                }
+                if (event.key.key == SDLK_ESCAPE) {
+                    _running = false;
+                }
+                if (event.key.key == SDLK_S) {
+                    camera.z += VELOCITY;
+                }
+                if (event.key.key == SDLK_W) {
+                    camera.z -= VELOCITY;
+                }
+                if (event.key.key == SDLK_D) {
+                    camera.x += VELOCITY;
+                }
+                if (event.key.key == SDLK_A) {
+                    camera.x -= VELOCITY;
+                }
+                if (event.key.key == SDLK_UP) {
+                    camera.y += VELOCITY;
+                }
+                if (event.key.key == SDLK_DOWN) {
+                    camera.y -= VELOCITY;
+                }
             }
         }
 
-        GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+        Matrix4 viewMatrix = Matrix4::translation(-camera);
+        Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
 
         // Translate to origin 0, 0, 0.
         Matrix4 translateToOrigin = Matrix4::translation(-centroid);
@@ -157,13 +199,24 @@ void Renderer::mainLoop() {
 
         Matrix4 modelMatrix = translateToOrigin * rotationMatrix * translateBack;
 
-        shader.Bind();
-        shader.setUniformMat4f("u_ModelMatrix", modelMatrix);
+        angle += 0.5f;
+
+        GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+        if (_textureMode) {
+            _texturedShader.Bind();
+            _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
+            _texturedShader.setUniformMat4f("u_ModelMatrix", modelMatrix);
+        }
+
+        else {
+            _faceShader.Bind();
+            _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
+            _faceShader.setUniformMat4f("u_ModelMatrix", modelMatrix);
+        }
 
         GlCall(glBindVertexArray(_vao));
         ib.Bind();
-
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         GlCall(glDrawElements(GL_TRIANGLES, _model._vertexIndices.size(), GL_UNSIGNED_INT, nullptr));
 

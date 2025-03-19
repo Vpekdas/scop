@@ -45,9 +45,6 @@ void Model::calculateTextureCoordinates() {
             max.z = vertex.z;
     }
 
-    std::cout << "Bounding Box Min: (" << min.x << ", " << min.y << ", " << min.z << ")\n";
-    std::cout << "Bounding Box Max: (" << max.x << ", " << max.y << ", " << max.z << ")\n";
-
     for (const auto &vertex : _vertex) {
         float u = (vertex.x - min.x) / (max.x - min.x);
         float v = (vertex.y - min.y) / (max.y - min.y);
@@ -58,10 +55,6 @@ void Model::calculateTextureCoordinates() {
     _textureCoordinatesIndices.resize(_vertex.size());
     for (size_t i = 0; i < _vertex.size(); ++i) {
         _textureCoordinatesIndices[i] = i;
-    }
-
-    for (const auto &texCoord : _textureCoordinates) {
-        std::cout << "Texture Coordinate: (" << texCoord.x << ", " << texCoord.y << ")\n";
     }
 }
 
@@ -82,7 +75,7 @@ void Model::createCombinedVertexBuffer() {
 
 void Model::parse(const std::string &filename) {
     if (filename.find(".obj") == std::string::npos) {
-        throw std::runtime_error(NEON_RED "Error: file is not an obj." RESET);
+        throw std::runtime_error("Error: file is not an obj.");
     }
 
     std::ifstream infile(filename);
@@ -139,33 +132,28 @@ void Model::parse(const std::string &filename) {
             // Triangulate if there is more than 3 faces.
             if (vertices.size() > 3) {
                 for (size_t i = 1; i < vertices.size() - 1; i++) {
-                    std::vector<unsigned int> indices;
-                    for (size_t i = 1; i < vertices.size() - 1; i++) {
-                        std::vector<unsigned int> indices;
 
-                        size_t faceIndices[] = {0, i, i + 1};
-                        for (size_t j = 0; j < 3; ++j) {
-                            std::istringstream vertexStream(vertices[faceIndices[j]]);
-                            std::string index;
-                            unsigned int vertexIndex, textureIndex, normalIndex;
+                    unsigned long faceIndices[] = {0, i, i + 1};
+                    for (size_t j = 0; j < 3; ++j) {
+                        std::istringstream vertexStream(vertices[faceIndices[j]]);
+                        std::string index;
+                        unsigned int vertexIndex, textureIndex, normalIndex;
 
-                            std::getline(vertexStream, index, '/');
-                            vertexIndex = std::stoul(index) - 1;
-                            indices.push_back(vertexIndex);
-                            _vertexIndices.push_back(vertexIndex);
+                        std::getline(vertexStream, index, '/');
+                        vertexIndex = std::stoul(index) - 1;
+                        _vertexIndices.push_back(vertexIndex);
 
-                            if (std::getline(vertexStream, index, '/')) {
-                                if (!index.empty()) {
-                                    textureIndex = std::stoul(index) - 1;
-                                    _textureCoordinatesIndices.push_back(textureIndex);
-                                }
+                        if (std::getline(vertexStream, index, '/')) {
+                            if (!index.empty()) {
+                                textureIndex = std::stoul(index) - 1;
+                                _textureCoordinatesIndices.push_back(textureIndex);
                             }
+                        }
 
-                            if (std::getline(vertexStream, index, '/')) {
-                                if (!index.empty()) {
-                                    normalIndex = std::stoul(index) - 1;
-                                    _vertexNormalsIndices.push_back(normalIndex);
-                                }
+                        if (std::getline(vertexStream, index, '/')) {
+                            if (!index.empty()) {
+                                normalIndex = std::stoul(index) - 1;
+                                _vertexNormalsIndices.push_back(normalIndex);
                             }
                         }
                     }

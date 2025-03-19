@@ -25,10 +25,6 @@ in vec2 v_TexCoord;
 uniform sampler2D u_Texture;
 
 void main() {
-    // float r = float((gl_PrimitiveID % 3) == 0);
-    // float g = float((gl_PrimitiveID % 3) == 1);
-    // float b = float((gl_PrimitiveID % 3) == 2);
-    // color = vec4(r, g, b, 1.0);
 
     color = texture(u_Texture, v_TexCoord);
 }

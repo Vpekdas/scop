@@ -1,17 +1,16 @@
-#include "../include/Model.hpp"
 #include "../include/Renderer.hpp"
 #include "../include/colors.hpp"
 #include <iostream>
 
 int main(int ac, char **av) {
 
-    if (ac != 2) {
+    if (ac != 3) {
         std::cerr << NEON_RED << "Error: Usage is <scop> <.obj>" << RESET << std::endl;
         return 1;
     }
     try {
 
-        Renderer Renderer(av[1]);
+        Renderer Renderer(av[1], av[2]);
 
         Renderer.mainLoop();
 
