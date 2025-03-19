@@ -6,7 +6,6 @@
 
 class Model {
     public:
-    
     Model();
     void parse(const std::string &filename);
     void calculateCentroid();
