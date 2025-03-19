@@ -132,4 +132,20 @@ void Texture::LoadTGA(const std::string &filename) {
     m_Width = width;
     m_Height = height;
     m_BPP = bits;
+
+    std::cout << "Verifying Pixel Data:" << std::endl;
+    for (int y = 0; y < m_Height; ++y) {
+        for (int x = 0; x < m_Width; ++x) {
+            int index = (y * m_Width + x) * (m_BPP / 8); // Calculate the pixel index
+            unsigned char r = m_LocalBuffer[index];
+            unsigned char g = m_LocalBuffer[index + 1];
+            unsigned char b = m_LocalBuffer[index + 2];
+            std::cout << "Pixel (" << x << ", " << y << "): R=" << (int)r << ", G=" << (int)g << ", B=" << (int)b;
+            if (m_BPP == 32) { // If the image has an alpha channel
+                unsigned char a = m_LocalBuffer[index + 3];
+                std::cout << ", A=" << (int)a;
+            }
+            std::cout << std::endl;
+        }
+    }
 }

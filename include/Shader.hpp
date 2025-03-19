@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../include/Matrix4.hpp"
-#include "../include/Renderer.hpp"
 #include <iostream>
 #include <unordered_map>
 
