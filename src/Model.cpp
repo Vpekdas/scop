@@ -71,6 +71,22 @@ void Model::createCombinedVertexBuffer() {
         _combinedVertexBuffer.push_back(texCoord.x);
         _combinedVertexBuffer.push_back(texCoord.y);
     }
+
+    const Vector3 &vertex = _vertex[5];
+    const Vector3 &vertex2 = _vertex[4];
+    const Vector3 &vertex3 = _vertex[0];
+
+    const Vector2 &coordinate = _textureCoordinates[0];
+    const Vector2 &coordinate2 = _textureCoordinates[1];
+    const Vector2 &coordinate3 = _textureCoordinates[2];
+
+    std::cout << vertex.x << " " << vertex.y << " " << vertex.z << std::endl;
+    std::cout << vertex2.x << " " << vertex2.y << " " << vertex2.z << std::endl;
+    std::cout << vertex3.x << " " << vertex3.y << " " << vertex3.z << std::endl;
+
+    std::cout << coordinate.x << " " << coordinate.y << " " << std::endl;
+    std::cout << coordinate2.x << " " << coordinate2.y << " " << std::endl;
+    std::cout << coordinate3.x << " " << coordinate3.y << " " << std::endl;
 }
 
 void Model::parse(const std::string &filename) {
