@@ -91,7 +91,8 @@ void Model::parse(const std::string &filename) {
                 _vertex.push_back(vec3);
 
             } else if (type == "vt") {
-                const Vector2 vec2(values[0], values[1]);
+                // We are substracting - 1 for adapting the origin of texture (top-left).
+                const Vector2 vec2(values[0], 1.0 - values[1]);
                 _textureCoordinates.push_back(vec2);
             }
         }
