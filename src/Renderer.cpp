@@ -18,7 +18,7 @@ void GlClearError() {
 
 bool GlLogCall(const char *function, const char *file, unsigned int line) {
     while (GLenum error = glGetError()) {
-        std::cerr << "[OpenGl Error] (" << error << "): " << function << " " << ":" << line << std::endl;
+        std::cerr << "[OpenGl Error] (" << error << "): " << function << " " << ":" << file << " " << line << std::endl;
         return false;
     }
     return true;
@@ -195,7 +195,6 @@ void Renderer::mainLoop() {
         }
 
         Matrix4 viewMatrix = Matrix4::translation(-camera);
-        Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
 
         // Translate to origin 0, 0, 0.
         Matrix4 translateToOrigin = Matrix4::translation(-centroid);
