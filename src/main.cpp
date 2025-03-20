@@ -5,7 +5,7 @@
 int main(int ac, char **av) {
 
     if (ac != 3) {
-        std::cerr << NEON_RED << "Error: Usage is <scop> <.obj>" << RESET << std::endl;
+        std::cerr << NEON_RED << "Error: Usage is <scop> <.obj> <texture.tga>" << RESET << std::endl;
         return 1;
     }
     try {

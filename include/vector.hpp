@@ -1,9 +1,9 @@
 #pragma once
 
 struct Vector2 {
-    Vector2(float x, float y);
+    Vector2(float u, float v);
 
-    float x, y;
+    float u, v;
 };
 
 struct Vector3 {

@@ -1,15 +1,14 @@
 #include "../include/Model.hpp"
-#include "../include/colors.hpp"
 #include <fstream>
 #include <iostream>
-#include <ostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 Model::Model()
-    : _name(), _vertex(), _vertexNormals(), _textureCoordinates(), _smoothingGroups(), _materials(),
+    : _vertex(), _textureCoordinates(), _vertexIndices(), _textureCoordinatesIndices(), _combinedVertexBuffer(),
       _centroid(0, 0, 0) {
 }
 
@@ -27,7 +26,7 @@ void Model::calculateTextureCoordinates() {
     if (_vertex.empty())
         return;
 
-    // Determine the bounding box
+    // Determine the bounding box.
     Vector3 min = _vertex[0];
     Vector3 max = _vertex[0];
     for (const auto &vertex : _vertex) {
@@ -52,41 +51,11 @@ void Model::calculateTextureCoordinates() {
         _textureCoordinates.push_back(texCoord);
     }
 
+    // Ensure that there is the same texture coordinate indices as vertex.
     _textureCoordinatesIndices.resize(_vertex.size());
     for (size_t i = 0; i < _vertex.size(); ++i) {
         _textureCoordinatesIndices[i] = i;
     }
-}
-
-void Model::createCombinedVertexBuffer() {
-
-    for (size_t i = 0; i < _vertex.size(); i++) {
-
-        const Vector3 &vertex = _vertex[i];
-        const Vector2 &texCoord = _textureCoordinates[i];
-
-        _combinedVertexBuffer.push_back(vertex.x);
-        _combinedVertexBuffer.push_back(vertex.y);
-        _combinedVertexBuffer.push_back(vertex.z);
-        _combinedVertexBuffer.push_back(texCoord.x);
-        _combinedVertexBuffer.push_back(texCoord.y);
-    }
-
-    const Vector3 &vertex = _vertex[5];
-    const Vector3 &vertex2 = _vertex[4];
-    const Vector3 &vertex3 = _vertex[0];
-
-    const Vector2 &coordinate = _textureCoordinates[0];
-    const Vector2 &coordinate2 = _textureCoordinates[1];
-    const Vector2 &coordinate3 = _textureCoordinates[2];
-
-    std::cout << vertex.x << " " << vertex.y << " " << vertex.z << std::endl;
-    std::cout << vertex2.x << " " << vertex2.y << " " << vertex2.z << std::endl;
-    std::cout << vertex3.x << " " << vertex3.y << " " << vertex3.z << std::endl;
-
-    std::cout << coordinate.x << " " << coordinate.y << " " << std::endl;
-    std::cout << coordinate2.x << " " << coordinate2.y << " " << std::endl;
-    std::cout << coordinate3.x << " " << coordinate3.y << " " << std::endl;
 }
 
 void Model::parse(const std::string &filename) {
@@ -108,11 +77,7 @@ void Model::parse(const std::string &filename) {
         start = line.find(" ");
         type = line.substr(0, start);
 
-        if (type == "o") {
-            _name = line.substr(start + 1);
-        }
-
-        else if (type == "v" || type == "vn" || type == "vt") {
+        if (type == "v" || type == "vt") {
             std::istringstream iss(line.substr(start + 1));
             std::vector<float> values;
             float value;
@@ -121,90 +86,148 @@ void Model::parse(const std::string &filename) {
                 values.push_back(value);
             }
 
-            if (type == "v" || type == "vn") {
+            if (type == "v") {
+                const Vector3 vec3(values[0], values[1], values[2]);
+                _vertex.push_back(vec3);
 
-                Vector3 vec3(values[0], values[1], values[2]);
-                if (type == "v") {
-
-                    _vertex.push_back(vec3);
-                } else {
-                    _vertexNormals.push_back(vec3);
-                }
             } else if (type == "vt") {
-                Vector2 vec2(values[0], values[1]);
+                const Vector2 vec2(values[0], values[1]);
                 _textureCoordinates.push_back(vec2);
             }
         }
 
         else if (type == "f") {
+
+            // At this state, we have parsed all vertices and texture coordinates. So if the container is empty, it
+            // means we should calculate them.
+            if (_textureCoordinates.empty()) {
+                calculateTextureCoordinates();
+            }
+
             std::istringstream iss(line.substr(start + 1));
             std::vector<std::string> vertices;
             std::string vertex;
 
+            // Split each vertex in a string.
+            // Ex: f 1/1/1 5/2/1 7/3/1 3/4/1 -> vertices[0] = 1/1/1.
             while (iss >> vertex) {
                 vertices.push_back(vertex);
             }
 
-            // Triangulate if there is more than 3 faces.
-            if (vertices.size() > 3) {
-                for (size_t i = 1; i < vertices.size() - 1; i++) {
+            // If there is only 3 vertices, we can draw a triangle.
+            if (vertices.size() == 3) {
 
-                    unsigned long faceIndices[] = {0, i, i + 1};
-                    for (size_t j = 0; j < 3; ++j) {
-                        std::istringstream vertexStream(vertices[faceIndices[j]]);
-                        std::string index;
-                        unsigned int vertexIndex, textureIndex, normalIndex;
+                // Map to store unique vertex-texture combinations.
+                // Ensure that a vertex unique. It's more efficient since we have less vertex to store and for me it
+                // allows me to display a cube correctly x).
+                std::unordered_map<std::string, unsigned int> uniqueVertices;
 
-                        std::getline(vertexStream, index, '/');
-                        vertexIndex = std::stoul(index) - 1;
-                        _vertexIndices.push_back(vertexIndex);
+                for (const auto &triangleVertex : vertices) {
+                    std::istringstream vertexStream(triangleVertex);
+                    std::string index;
+                    unsigned int vertexIndex = 0, textureIndex = 0;
 
-                        if (std::getline(vertexStream, index, '/')) {
-                            if (!index.empty()) {
-                                textureIndex = std::stoul(index) - 1;
-                                _textureCoordinatesIndices.push_back(textureIndex);
-                            }
-                        }
-
-                        if (std::getline(vertexStream, index, '/')) {
-                            if (!index.empty()) {
-                                normalIndex = std::stoul(index) - 1;
-                                _vertexNormalsIndices.push_back(normalIndex);
-                            }
+                    // Parse vertices indices. (first /)
+                    if (std::getline(vertexStream, index, '/')) {
+                        if (!index.empty()) {
+                            vertexIndex = std::stoul(index) - 1;
                         }
                     }
-                }
-            } else {
-                for (const auto &vertex : vertices) {
-                    std::istringstream vertexStream(vertex);
-                    std::string index;
-                    unsigned int vertexIndex, textureIndex, normalIndex;
 
-                    std::getline(vertexStream, index, '/');
-                    vertexIndex = std::stoul(index) - 1;
-                    _vertexIndices.push_back(vertexIndex);
-
+                    // Parse texture coordinates indices. (second /)
                     if (std::getline(vertexStream, index, '/')) {
                         if (!index.empty()) {
                             textureIndex = std::stoul(index) - 1;
-                            _textureCoordinatesIndices.push_back(textureIndex);
                         }
                     }
 
-                    if (std::getline(vertexStream, index, '/')) {
-                        if (!index.empty()) {
-                            normalIndex = std::stoul(index) - 1;
-                            _vertexNormalsIndices.push_back(normalIndex);
+                    // Generate a unique key for the vertex-texture combination.
+                    std::string key = std::to_string(vertexIndex) + "/" + std::to_string(textureIndex);
+
+                    // Check if the vertex-texture combination is not already in the map.
+                    if (uniqueVertices.find(key) == uniqueVertices.end()) {
+
+                        // Retrieve the vertices corresponding to vertices index found in face.
+                        const Vector3 &vertex = _vertex[vertexIndex];
+                        _combinedVertexBuffer.push_back(vertex.x);
+                        _combinedVertexBuffer.push_back(vertex.y);
+                        _combinedVertexBuffer.push_back(vertex.z);
+
+                        // Retrieve the texture coordinates corresponding to vertices index found in face.
+                        const Vector2 &texCoord = _textureCoordinates[textureIndex];
+                        _combinedVertexBuffer.push_back(texCoord.u);
+                        _combinedVertexBuffer.push_back(texCoord.v);
+
+                        // Store the index of the new vertex by calculating last vertex index.
+                        // Since a contain  5 float, we divide per 5 to know how many vertex are in there.
+                        // - 1 for finding the new index.
+                        uniqueVertices[key] = _combinedVertexBuffer.size() / 5 - 1;
+                    }
+
+                    // Store in indices container, It will be usefull to create Index buffer,
+                    _vertexIndices.push_back(uniqueVertices[key]);
+                }
+            }
+
+            // Apply fan triangulation for polygons with more than 3 vertices.
+            else if (vertices.size() > 3) {
+
+                // Map to store unique vertex-texture combinations.
+                // Ensure that a vertex unique. It's more efficient since we have less vertex to store and for me it
+                // allows me to display a cube correctly x).
+                std::unordered_map<std::string, unsigned int> uniqueVertices;
+
+                for (unsigned int i = 1; i < vertices.size() - 1; ++i) {
+
+                    std::string triangleVertices[] = {vertices[0], vertices[i], vertices[i + 1]};
+
+                    for (const auto &triangleVertex : triangleVertices) {
+                        std::istringstream vertexStream(triangleVertex);
+                        std::string index;
+                        unsigned int vertexIndex = 0, textureIndex = 0;
+
+                        // Parse vertices indices. (first /)
+                        if (std::getline(vertexStream, index, '/')) {
+                            if (!index.empty()) {
+                                vertexIndex = std::stoul(index) - 1;
+                            }
                         }
+
+                        // Parse texture coordinates indices. (second /)
+                        if (std::getline(vertexStream, index, '/')) {
+                            if (!index.empty()) {
+                                textureIndex = std::stoul(index) - 1;
+                            }
+                        }
+
+                        // Generate a unique key for the vertex-texture combination.
+                        std::string key = std::to_string(vertexIndex) + "/" + std::to_string(textureIndex);
+
+                        // Check if the vertex-texture combination is not already in the map.
+                        if (uniqueVertices.find(key) == uniqueVertices.end()) {
+
+                            // Retrieve the vertices corresponding to vertices index found in face.
+                            const Vector3 &vertex = _vertex[vertexIndex];
+                            _combinedVertexBuffer.push_back(vertex.x);
+                            _combinedVertexBuffer.push_back(vertex.y);
+                            _combinedVertexBuffer.push_back(vertex.z);
+
+                            // Retrieve the texture coordinates corresponding to vertices index found in face.
+                            const Vector2 &texCoord = _textureCoordinates[textureIndex];
+                            _combinedVertexBuffer.push_back(texCoord.u);
+                            _combinedVertexBuffer.push_back(texCoord.v);
+
+                            // Store the index of the new vertex by calculating last vertex index.
+                            // Since a contain  5 float, we divide per 5 to know how many vertex are in there.
+                            // - 1 for finding the new index.
+                            uniqueVertices[key] = _combinedVertexBuffer.size() / 5 - 1;
+                        }
+
+                        // Store in indices container, It will be usefull to create Index buffer,
+                        _vertexIndices.push_back(uniqueVertices[key]);
                     }
                 }
             }
         }
     }
-
-    if (_textureCoordinates.empty()) {
-        calculateTextureCoordinates();
-    }
-
-    createCombinedVertexBuffer();
 }
