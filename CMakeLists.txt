@@ -5,6 +5,8 @@ project(scop-project)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Werror")
+
 add_executable(scop
     src/IndexBuffer.cpp
     src/main.cpp

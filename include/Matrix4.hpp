@@ -19,7 +19,7 @@ struct Matrix4 {
     // perspectiveFovRH_NO
     static Matrix4 perspective(float fov, int width, int height, float near, float far) {
         const float rad = fov * M_PI / 180.0;
-        const float h = cos(0.5 * fov) / sin(0.5 * fov);
+        const float h = cos(0.5 * rad) / sin(0.5 * rad);
         const float w = h * (float)height / (float)width;
 
         Matrix4 m(0.0);
