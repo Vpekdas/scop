@@ -8,7 +8,6 @@
 #include "SDL3/SDL_keycode.h"
 
 #include <alloca.h>
-#include <iterator>
 #include <string>
 #include <vector>
 
@@ -41,12 +40,14 @@ Renderer::Renderer(const std::string &file, const std::string &texturePath)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 
+    // Create Window.
     _window = SDL_CreateWindow(W_TITLE, W_WIDTH, W_HEIGHT, SDL_WINDOW_OPENGL);
 
     if (!_window) {
         throw std::runtime_error(SDL_GetError());
     }
 
+    // Create an OpenGL rendering context for the window.
     _gl_context = SDL_GL_CreateContext(_window);
 
     if (!_gl_context) {
@@ -58,6 +59,7 @@ Renderer::Renderer(const std::string &file, const std::string &texturePath)
     // Limiting frame rate (VSync).
     SDL_GL_SetSwapInterval(1);
 
+    // Initialize Glad so we can use OpenGL functions.
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         throw std::runtime_error(SDL_GetError());
     }
@@ -74,6 +76,7 @@ Renderer::~Renderer() {
 
 void Renderer::mainLoop() {
 
+    // Ensure that back-facing faces are not rendered to improve performance.
     GlCall(glEnable(GL_CULL_FACE));
 
     // Enable Depth Testing to ensure that depth is rendered correctly.
@@ -81,26 +84,31 @@ void Renderer::mainLoop() {
     GlCall(glEnable(GL_DEPTH_TEST));
     GlCall(glDepthFunc(GL_LESS));
 
+    // Enable transparency.
     GlCall(glEnable(GL_BLEND));
     GlCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
     // Create and bind Vertex Array.
+    // Configure the Vertex Array Object to tell OpenGL how to interpret the vertex buffer data.
     GlCall(glGenVertexArrays(1, &_vao));
     GlCall(glBindVertexArray(_vao));
 
     // Create and bind Vertex Buffer.
+    // It contains 3 float x, y and z as positions then u and v as texture coordinates.
     VertexBuffer vb(_model._combinedVertexBuffer.data(), _model._combinedVertexBuffer.size() * sizeof(float));
 
-    // Set up vertex attribute pointers.
-    // Vertex positions (attribute 0)
+    // Set up vertex attribute pointers. The first 3 float are the positions.
+    // Vertex positions (attribute 0) on shader.
     GlCall(glEnableVertexAttribArray(0));
     GlCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (const void *)(0)));
 
-    // Texture coordinates (attribute 1)
+    // The next 2 float are the texture coordinates.
+    // Texture coordinates (attribute 1) on shader.
     GlCall(glEnableVertexAttribArray(1));
     GlCall(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (const void *)(3 * sizeof(float))));
 
     // Create and bind Vertex Indices Buffer.
+    // OpenGL uses the index buffer to reference vertices and draw triangles efficiently.
     IndexBuffer ib(_model._vertexIndices.data(), _model._vertexIndices.size());
 
     float angle = 0.0f;
@@ -110,26 +118,29 @@ void Renderer::mainLoop() {
     Matrix4 viewMatrix = Matrix4::translation(-camera);
     Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
 
+    // Usefull for rotating model by his mass center.
     _model.calculateCentroid();
 
     // Get the centroid of the model.
     Vector3 centroid = _model._centroid;
 
+    // Set the shader that display faces.
     Shader _faceShader("../res/Face.glsl");
     _faceShader.Bind();
     _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     _faceShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
     _faceShader.Unbind();
 
+    // Set the shader that display a texture.
     Shader _texturedShader("../res/Textured.glsl");
     _texturedShader.Bind();
     _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     _texturedShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
     Texture texture(_texturePath);
     texture.Bind();
-    // 0 because slot 0.
     _texturedShader.setUniform1i("u_Texture", 0);
 
+    // Unbind all objects.
     GlCall(glBindVertexArray(0));
     vb.Unbind();
     ib.Unbind();
@@ -137,8 +148,6 @@ void Renderer::mainLoop() {
     _texturedShader.Unbind();
 
     while (_running) {
-
-        unsigned int pPressed = 0;
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -203,6 +212,7 @@ void Renderer::mainLoop() {
 
         GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
+        // Select either the shader that display face or texture.
         if (_textureMode) {
             _texturedShader.Bind();
             _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
@@ -215,9 +225,11 @@ void Renderer::mainLoop() {
             _faceShader.setUniformMat4f("u_ModelMatrix", modelMatrix);
         }
 
+        // Select which buffer will be used to render.
         GlCall(glBindVertexArray(_vao));
         ib.Bind();
 
+        // Draw triangle by looking at indices.
         GlCall(glDrawElements(GL_TRIANGLES, _model._vertexIndices.size(), GL_UNSIGNED_INT, nullptr));
 
         SDL_GL_SwapWindow(_window);
