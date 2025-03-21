@@ -125,14 +125,14 @@ void Renderer::mainLoop() {
     Vector3 centroid = _model._centroid;
 
     // Set the shader that display faces.
-    Shader _faceShader("../res/Face.glsl");
+    Shader _faceShader("./res/Face.glsl");
     _faceShader.Bind();
     _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     _faceShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
     _faceShader.Unbind();
 
     // Set the shader that display a texture.
-    Shader _texturedShader("../res/Textured.glsl");
+    Shader _texturedShader("./res/Textured.glsl");
     _texturedShader.Bind();
     _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     _texturedShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
