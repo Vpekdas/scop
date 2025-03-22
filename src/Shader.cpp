@@ -81,18 +81,7 @@ void Shader::Bind() const {
 void Shader::Unbind() const {
     GlCall(glUseProgram(0));
 }
-int Shader::getUniformLocation(const std::string &name) {
-    if (_uniformLocationCache.find(name) != _uniformLocationCache.end()) {
-        return _uniformLocationCache[name];
-    }
 
-    int location = glGetUniformLocation(_rendererId, name.c_str());
-    if (location == -1) {
-        std::cerr << "Warning: uniform '" << name << "' doesn't exist!" << std::endl;
-    }
-    _uniformLocationCache[name] = location;
-    return location;
-}
 void Shader::setUniform4f(const std::string &name, float v0, float v1, float v2, float v3) {
     GlCall(glUniform4f(getUniformLocation(name), v0, v1, v2, v3));
 }
@@ -103,4 +92,19 @@ void Shader::setUniformMat4f(const std::string &name, const Matrix4 &matrix) {
 
 void Shader::setUniform1i(const std::string &name, float value) {
     GlCall(glUniform1i(getUniformLocation(name), value));
+}
+
+int Shader::getUniformLocation(const std::string &name) {
+    if (m_uniformCache.find(name) != m_uniformCache.end()) {
+        return m_uniformCache[name];
+    }
+
+    int location = glGetUniformLocation(_rendererId, name.c_str());
+    if (location == -1) {
+        // Not having a uniform is not critical, so no need to throw an exception.
+        // Model will still be displayed.
+        std::cerr << "Warning: uniform '" << name << "' doesn't exist!" << std::endl;
+    }
+    m_uniformCache[name] = location;
+    return location;
 }
