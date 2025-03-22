@@ -2,7 +2,6 @@
 
 #include "vector.hpp"
 #include <cmath>
-#include <iostream>
 
 struct Matrix4 {
     Matrix4() : Matrix4(1.0) {
@@ -41,6 +40,7 @@ struct Matrix4 {
     }
 
     // https://www.geeksforgeeks.org/rotation-matrix/#3d-rotation-matrix
+    
     static Matrix4 rotationX(float angle) {
         Matrix4 m(1.0);
         float rad = angle * M_PI / 180.0;

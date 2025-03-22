@@ -1,66 +1,58 @@
 #include "../include/Model.hpp"
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 Model::Model()
-    : _vertex(), _textureCoordinates(), _vertexIndices(), _textureCoordinatesIndices(), _combinedVertexBuffer(),
+    : m_vertices(), m_textureCoordinates(), m_verticesIndices(), m_textureIndices(), m_vertexBuffer(),
       _centroid(0, 0, 0) {
 }
 
 void Model::calculateCentroid() {
-    Vector3 sum(0, 0, 0);
-    for (const auto &vertex : _vertex) {
-        sum.x += vertex.x;
-        sum.y += vertex.y;
-        sum.z += vertex.z;
+    if (m_vertices.empty()) {
+        _centroid = Vector3(0, 0, 0);
+        return;
     }
-    _centroid = Vector3(sum.x / _vertex.size(), sum.y / _vertex.size(), sum.z / _vertex.size());
+
+    Vector3 sum =
+        std::accumulate(m_vertices.begin(), m_vertices.end(), Vector3(0, 0, 0),
+                        [](const Vector3 &a, const Vector3 &b) { return Vector3(a.x + b.x, a.y + b.y, a.z + b.z); });
+
+    _centroid = Vector3(sum.x / m_vertices.size(), sum.y / m_vertices.size(), sum.z / m_vertices.size());
 }
 
 void Model::calculateTextureCoordinates() {
-    if (_vertex.empty())
-        return;
+    if (m_vertices.empty())
+        throw std::runtime_error("Error: no vertices are found in obj.\n");
 
-    // Determine the bounding box.
-    Vector3 min = _vertex[0];
-    Vector3 max = _vertex[0];
-    for (const auto &vertex : _vertex) {
-        if (vertex.x < min.x)
-            min.x = vertex.x;
-        if (vertex.y < min.y)
-            min.y = vertex.y;
-        if (vertex.z < min.z)
-            min.z = vertex.z;
-        if (vertex.x > max.x)
-            max.x = vertex.x;
-        if (vertex.y > max.y)
-            max.y = vertex.y;
-        if (vertex.z > max.z)
-            max.z = vertex.z;
+    // Using bounding box method was creating more stretches than this method.
+    // So I'm just creating UV map for each triangles.
+    for (size_t i = 0; i < m_vertices.size(); i += 3) {
+        Vector3 vertex0 = m_vertices[i];
+        Vector3 vertex1 = m_vertices[i + 1];
+        Vector3 vertex2 = m_vertices[i + 2];
+
+        Vector2 uv0(vertex0.x, vertex0.y);
+        Vector2 uv1(vertex1.x, vertex1.y);
+        Vector2 uv2(vertex2.x, vertex2.y);
+
+        m_textureCoordinates.push_back(uv0);
+        m_textureCoordinates.push_back(uv1);
+        m_textureCoordinates.push_back(uv2);
     }
 
-    for (const auto &vertex : _vertex) {
-        float u = (vertex.x - min.x) / (max.x - min.x);
-        float v = (vertex.y - min.y) / (max.y - min.y);
-        Vector2 texCoord(u, v);
-        _textureCoordinates.push_back(texCoord);
-    }
-
-    // Ensure that there is the same texture coordinate indices as vertex.
-    _textureCoordinatesIndices.resize(_vertex.size());
-    for (size_t i = 0; i < _vertex.size(); ++i) {
-        _textureCoordinatesIndices[i] = i;
+    for (size_t i = 0; i < m_vertices.size(); i++) {
+        m_textureIndices.push_back(i);
     }
 }
 
 void Model::parse(const std::string &filename) {
     if (filename.find(".obj") == std::string::npos) {
-        throw std::runtime_error("Error: file is not an obj.");
+        throw std::runtime_error("Error: file is not an obj.\n");
     }
 
     std::ifstream infile(filename);
@@ -88,20 +80,19 @@ void Model::parse(const std::string &filename) {
 
             if (type == "v") {
                 const Vector3 vec3(values[0], values[1], values[2]);
-                _vertex.push_back(vec3);
+                m_vertices.push_back(vec3);
 
             } else if (type == "vt") {
-                // We are substracting - 1 for adapting the origin of texture (top-left).
+                // Subtract 1 to adapt the texture origin to the top-left corner.
                 const Vector2 vec2(values[0], 1.0 - values[1]);
-                _textureCoordinates.push_back(vec2);
+                m_textureCoordinates.push_back(vec2);
             }
         }
 
         else if (type == "f") {
-
             // At this state, we have parsed all vertices and texture coordinates. So if the container is empty, it
             // means we should calculate them.
-            if (_textureCoordinates.empty()) {
+            if (m_textureCoordinates.empty()) {
                 calculateTextureCoordinates();
             }
 
@@ -140,6 +131,8 @@ void Model::parse(const std::string &filename) {
                         if (!index.empty()) {
                             textureIndex = std::stoul(index) - 1;
                         }
+                    } else {
+                        textureIndex = m_textureIndices[vertexIndex];
                     }
 
                     // Generate a unique key for the vertex-texture combination.
@@ -149,24 +142,24 @@ void Model::parse(const std::string &filename) {
                     if (uniqueVertices.find(key) == uniqueVertices.end()) {
 
                         // Retrieve the vertices corresponding to vertices index found in face.
-                        const Vector3 &vertex = _vertex[vertexIndex];
-                        _combinedVertexBuffer.push_back(vertex.x);
-                        _combinedVertexBuffer.push_back(vertex.y);
-                        _combinedVertexBuffer.push_back(vertex.z);
+                        const Vector3 &vertex = m_vertices[vertexIndex];
+                        m_vertexBuffer.push_back(vertex.x);
+                        m_vertexBuffer.push_back(vertex.y);
+                        m_vertexBuffer.push_back(vertex.z);
 
                         // Retrieve the texture coordinates corresponding to vertices index found in face.
-                        const Vector2 &texCoord = _textureCoordinates[textureIndex];
-                        _combinedVertexBuffer.push_back(texCoord.u);
-                        _combinedVertexBuffer.push_back(texCoord.v);
+                        const Vector2 &texCoord = m_textureCoordinates[textureIndex];
+                        m_vertexBuffer.push_back(texCoord.u);
+                        m_vertexBuffer.push_back(texCoord.v);
 
                         // Store the index of the new vertex by calculating last vertex index.
                         // Since a contain  5 float, we divide per 5 to know how many vertex are in there.
                         // - 1 for finding the new index.
-                        uniqueVertices[key] = _combinedVertexBuffer.size() / 5 - 1;
+                        uniqueVertices[key] = m_vertexBuffer.size() / 5 - 1;
                     }
 
-                    // Store in indices container, It will be usefull to create Index buffer,
-                    _vertexIndices.push_back(uniqueVertices[key]);
+                    // Store the new indices that will be used in Vertex Buffer.
+                    m_verticesIndices.push_back(uniqueVertices[key]);
                 }
             }
 
@@ -199,6 +192,8 @@ void Model::parse(const std::string &filename) {
                             if (!index.empty()) {
                                 textureIndex = std::stoul(index) - 1;
                             }
+                        } else {
+                            textureIndex = m_textureIndices[vertexIndex];
                         }
 
                         // Generate a unique key for the vertex-texture combination.
@@ -208,24 +203,24 @@ void Model::parse(const std::string &filename) {
                         if (uniqueVertices.find(key) == uniqueVertices.end()) {
 
                             // Retrieve the vertices corresponding to vertices index found in face.
-                            const Vector3 &vertex = _vertex[vertexIndex];
-                            _combinedVertexBuffer.push_back(vertex.x);
-                            _combinedVertexBuffer.push_back(vertex.y);
-                            _combinedVertexBuffer.push_back(vertex.z);
+                            const Vector3 &vertex = m_vertices[vertexIndex];
+                            m_vertexBuffer.push_back(vertex.x);
+                            m_vertexBuffer.push_back(vertex.y);
+                            m_vertexBuffer.push_back(vertex.z);
 
                             // Retrieve the texture coordinates corresponding to vertices index found in face.
-                            const Vector2 &texCoord = _textureCoordinates[textureIndex];
-                            _combinedVertexBuffer.push_back(texCoord.u);
-                            _combinedVertexBuffer.push_back(texCoord.v);
+                            const Vector2 &texCoord = m_textureCoordinates[textureIndex];
+                            m_vertexBuffer.push_back(texCoord.u);
+                            m_vertexBuffer.push_back(texCoord.v);
 
                             // Store the index of the new vertex by calculating last vertex index.
                             // Since a contain  5 float, we divide per 5 to know how many vertex are in there.
                             // - 1 for finding the new index.
-                            uniqueVertices[key] = _combinedVertexBuffer.size() / 5 - 1;
+                            uniqueVertices[key] = m_vertexBuffer.size() / 5 - 1;
                         }
 
-                        // Store in indices container, It will be usefull to create Index buffer,
-                        _vertexIndices.push_back(uniqueVertices[key]);
+                        // Store the new indices that will be used in Vertex Buffer.
+                        m_verticesIndices.push_back(uniqueVertices[key]);
                     }
                 }
             }

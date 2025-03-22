@@ -25,8 +25,7 @@ bool GlLogCall(const char *function, const char *file, unsigned int line) {
 }
 
 Renderer::Renderer(const std::string &file, const std::string &texturePath)
-    : _window(nullptr), _gl_context(nullptr), _vao(0), _model(), _texturePath(texturePath), _running(true),
-      _textureMode(false) {
+    : _window(nullptr), _gl_context(nullptr), _vao(0), _model(), _texturePath(texturePath) {
 
     _model.parse(file);
 
@@ -95,7 +94,7 @@ void Renderer::mainLoop() {
 
     // Create and bind Vertex Buffer.
     // It contains 3 float x, y and z as positions then u and v as texture coordinates.
-    VertexBuffer vb(_model._combinedVertexBuffer.data(), _model._combinedVertexBuffer.size() * sizeof(float));
+    VertexBuffer vb(_model.m_vertexBuffer.data(), _model.m_vertexBuffer.size() * sizeof(float));
 
     // Set up vertex attribute pointers. The first 3 float are the positions.
     // Vertex positions (attribute 0) on shader.
@@ -108,8 +107,8 @@ void Renderer::mainLoop() {
     GlCall(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (const void *)(3 * sizeof(float))));
 
     // Create and bind Vertex Indices Buffer.
-    // OpenGL uses the index buffer to reference vertices and draw triangles efficiently.
-    IndexBuffer ib(_model._vertexIndices.data(), _model._vertexIndices.size());
+    // OpenGL will uses the index buffer to reference vertices and draw triangles efficiently.
+    IndexBuffer ib(_model.m_verticesIndices.data(), _model.m_verticesIndices.size());
 
     float angle = 0.0f;
 
@@ -121,11 +120,10 @@ void Renderer::mainLoop() {
     // Usefull for rotating model by his mass center.
     _model.calculateCentroid();
 
-    // Get the centroid of the model.
     Vector3 centroid = _model._centroid;
 
     // Set the shader that display faces.
-    Shader _faceShader("../res/Face.glsl");
+    Shader _faceShader("../res/Basic.glsl");
     _faceShader.Bind();
     _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     _faceShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
@@ -147,19 +145,21 @@ void Renderer::mainLoop() {
     _faceShader.Unbind();
     _texturedShader.Unbind();
 
-    while (_running) {
+    bool running = true, textureMode = false;
+
+    while (running) {
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
-                _running = false;
+                running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN) {
                 // TODO: Refactor this.
                 if (event.key.key == SDLK_T) {
-                    _textureMode = true;
+                    textureMode = true;
                 }
                 if (event.key.key == SDLK_F) {
-                    _textureMode = false;
+                    textureMode = false;
                 }
                 if (event.key.key == SDLK_P) {
                     glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
@@ -171,7 +171,7 @@ void Renderer::mainLoop() {
                     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
                 }
                 if (event.key.key == SDLK_ESCAPE) {
-                    _running = false;
+                    running = false;
                 }
                 if (event.key.key == SDLK_S) {
                     camera.z += VELOCITY;
@@ -212,7 +212,7 @@ void Renderer::mainLoop() {
         GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
         // Select either the shader that display face or texture.
-        if (_textureMode) {
+        if (textureMode) {
             _texturedShader.Bind();
             _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
             _texturedShader.setUniformMat4f("u_ModelMatrix", modelMatrix);
@@ -229,7 +229,7 @@ void Renderer::mainLoop() {
         ib.Bind();
 
         // Draw triangle by looking at indices.
-        GlCall(glDrawElements(GL_TRIANGLES, _model._vertexIndices.size(), GL_UNSIGNED_INT, nullptr));
+        GlCall(glDrawElements(GL_TRIANGLES, _model.m_verticesIndices.size(), GL_UNSIGNED_INT, nullptr));
 
         SDL_GL_SwapWindow(_window);
     }
