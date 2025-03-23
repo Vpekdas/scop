@@ -6,7 +6,6 @@
 
 #include <SDL3/SDL_opengl.h>
 
-#include "Matrix4.hpp"
 #include "Model.hpp"
 #include "vector.hpp"
 #include <signal.h>
@@ -14,7 +13,7 @@
 constexpr char W_TITLE[] = "SCOP";
 constexpr int W_WIDTH = 1280;
 constexpr int W_HEIGHT = 720;
-constexpr float CAMERA_SPEED = 1.0f;
+constexpr float CAMERA_SPEED = 0.7f;
 constexpr float ROTATION_SPEED = 0.5f;
 
 // Ensure that if there is any GL error, it close the program and tell which GL error code happened.
