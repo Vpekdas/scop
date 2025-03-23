@@ -8,7 +8,9 @@
 #include "SDL3/SDL_keycode.h"
 
 #include <alloca.h>
+#include <functional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 void GlClearError() {
@@ -73,6 +75,38 @@ Renderer::~Renderer() {
     SDL_Quit();
 }
 
+// Anonymous function (lambda) like in JavaScript, [&] captures all variables by reference, allowing them to be
+// modified.
+void Renderer::handleInput(const SDL_Event &event, bool &running, bool &textureMode, Vector3 &camera,
+                           RotationAxis &activeAxis, float &cameraRotationAngle) {
+    static const std::unordered_map<int, std::function<void()> > keyBindings = {
+        {SDLK_T, [&]() { textureMode = true; }},
+        {SDLK_F, [&]() { textureMode = false; }},
+        {SDLK_F1, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_POINT); }},
+        {SDLK_F2, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }},
+        {SDLK_F3, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); }},
+        {SDLK_ESCAPE, [&]() { running = false; }},
+        {SDLK_S, [&]() { camera.z += CAMERA_SPEED; }},
+        {SDLK_W, [&]() { camera.z -= CAMERA_SPEED; }},
+        {SDLK_D, [&]() { camera.x += CAMERA_SPEED; }},
+        {SDLK_A, [&]() { camera.x -= CAMERA_SPEED; }},
+        {SDLK_UP, [&]() { camera.y += CAMERA_SPEED; }},
+        {SDLK_DOWN, [&]() { camera.y -= CAMERA_SPEED; }},
+        {SDLK_LEFT, [&]() { cameraRotationAngle += CAMERA_SPEED; }},
+        {SDLK_RIGHT, [&]() { cameraRotationAngle -= CAMERA_SPEED; }},
+        {SDLK_X, [&]() { activeAxis = RotationAxis::X; }},
+        {SDLK_Y, [&]() { activeAxis = RotationAxis::Y; }},
+        {SDLK_Z, [&]() { activeAxis = RotationAxis::Z; }},
+        {SDLK_SPACE, [&]() { activeAxis = RotationAxis::NONE; }},
+
+    };
+
+    auto it = keyBindings.find(event.key.key);
+    if (it != keyBindings.end()) {
+        it->second();
+    }
+}
+
 void Renderer::mainLoop() {
 
     // Ensure that back-facing faces are not rendered to improve performance.
@@ -110,10 +144,8 @@ void Renderer::mainLoop() {
     // OpenGL will uses the index buffer to reference vertices and draw triangles efficiently.
     IndexBuffer ib(_model.m_verticesIndices.data(), _model.m_verticesIndices.size());
 
-    float angle = 0.0f;
-
     // Set Initial Camera position.
-    Vector3 camera(0, 0, 5);
+    Vector3 camera(0, 0, 10);
     Matrix4 viewMatrix = Matrix4::translation(-camera);
     Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
 
@@ -145,6 +177,12 @@ void Renderer::mainLoop() {
     _faceShader.Unbind();
     _texturedShader.Unbind();
 
+    float angle = 0.0f, cameraRotationAngle = 0.0f, red = 0.0f, green = 0.0f;
+    RotationAxis activeAxis = RotationAxis::NONE;
+
+    Matrix4 translateToOrigin = Matrix4::translation(-centroid);
+    Matrix4 translateBack = Matrix4::translation(centroid);
+
     bool running = true, textureMode = false;
 
     while (running) {
@@ -154,61 +192,42 @@ void Renderer::mainLoop() {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN) {
-                // TODO: Refactor this.
-                if (event.key.key == SDLK_T) {
-                    textureMode = true;
-                }
-                if (event.key.key == SDLK_F) {
-                    textureMode = false;
-                }
-                if (event.key.key == SDLK_P) {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-                }
-                if (event.key.key == SDLK_L) {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                }
-                if (event.key.key == SDLK_C) {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                }
-                if (event.key.key == SDLK_ESCAPE) {
-                    running = false;
-                }
-                if (event.key.key == SDLK_S) {
-                    camera.z += VELOCITY;
-                }
-                if (event.key.key == SDLK_W) {
-                    camera.z -= VELOCITY;
-                }
-                if (event.key.key == SDLK_D) {
-                    camera.x += VELOCITY;
-                }
-                if (event.key.key == SDLK_A) {
-                    camera.x -= VELOCITY;
-                }
-                if (event.key.key == SDLK_UP) {
-                    camera.y += VELOCITY;
-                }
-                if (event.key.key == SDLK_DOWN) {
-                    camera.y -= VELOCITY;
-                }
+                handleInput(event, running, textureMode, camera, activeAxis, cameraRotationAngle);
             }
         }
 
-        Matrix4 viewMatrix = Matrix4::translation(-camera);
+        angle += ROTATION_SPEED;
 
-        // Translate to origin 0, 0, 0.
-        Matrix4 translateToOrigin = Matrix4::translation(-centroid);
+        Matrix4 rotationMatrix;
+        switch (activeAxis) {
+        case RotationAxis::X:
+            rotationMatrix = Matrix4::rotationX(angle);
+            break;
+        case RotationAxis::Y:
+            rotationMatrix = Matrix4::rotationY(angle);
+            break;
+        case RotationAxis::Z:
+            rotationMatrix = Matrix4::rotationZ(angle);
+            break;
+        case RotationAxis::NONE:
+            rotationMatrix = Matrix4(1.0f);
+            break;
+        }
 
-        // Apply rotation.
-        Matrix4 rotationMatrix = Matrix4::rotationY(angle);
-
-        // Translate back to original position.
-        Matrix4 translateBack = Matrix4::translation(centroid);
-
+        viewMatrix = Matrix4::translation(-camera);
         Matrix4 modelMatrix = translateToOrigin * rotationMatrix * translateBack;
 
-        angle += 0.5f;
+        // Rotation for camera with arrow key.
+        Matrix4 cameraRotationMatrix = Matrix4::rotationY(cameraRotationAngle);
+        viewMatrix = cameraRotationMatrix * Matrix4::translation(-camera);
 
+        // Rotating model.
+        modelMatrix = translateToOrigin * rotationMatrix * translateBack;
+
+        // Smooth background color change.
+        red = (sin(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
+        green = (cos(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
+        GlCall(glClearColor(red, green, 0.5f, 1.0f));
         GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
         // Select either the shader that display face or texture.
