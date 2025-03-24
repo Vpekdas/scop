@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../include/Renderer.hpp"
+#include <memory>
 
 struct tImageTGA {
     std::vector<unsigned char> data;
@@ -24,7 +25,7 @@ class Texture {
     private:
     unsigned int m_RendererID;
     std::string m_FilePath;
-    std::unique_ptr<unsigned char[]> m_LocalBuffer; 
+    std::unique_ptr<unsigned char[]> m_LocalBuffer;
     int m_Width, m_Height, m_BPP;
 
     inline int GetWidth() const {

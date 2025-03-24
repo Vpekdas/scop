@@ -55,7 +55,6 @@ static const char *video_usage[] = {
     "[--input-focus]",
     "[--keyboard-grab]",
     "[--logical-presentation disabled|match|stretch|letterbox|overscan|integer_scale]",
-    "[--logical-scale-quality nearest|linear|best]",
     "[--logical WxH]",
     "[--max-geometry WxH]",
     "[--maximize]",
@@ -2453,6 +2452,31 @@ SDL_AppResult SDLTest_CommonEventMainCallbacks(SDLTest_CommonState *state, const
                 SDL_Window *window = SDL_GetWindowFromEvent(event);
                 if (window) {
                     SDL_FlashWindow(window, SDL_FLASH_BRIEFLY);
+                }
+            }
+            break;
+        case SDLK_P:
+            if (withAlt) {
+                /* Ctrl-P Cycle through progress states */
+                SDL_Window *window = SDL_GetWindowFromEvent(event);
+                if (window) {
+                    state->progress_state += 1;
+                    if (state->progress_state > SDL_PROGRESS_STATE_ERROR) {
+                        state->progress_state = SDL_PROGRESS_STATE_NONE;
+                    }
+                    SDL_SetWindowProgressState(window, state->progress_state);
+                }
+            }
+            else if (withControl)
+            {
+                /* Alt-P Increase progress value */
+                SDL_Window *window = SDL_GetWindowFromEvent(event);
+                if (window) {
+                    state->progress_value += 0.1f;
+                    if (state->progress_value > 1.f) {
+                        state->progress_value = 0.f;
+                    }
+                    SDL_SetWindowProgressValue(window, state->progress_value);
                 }
             }
             break;

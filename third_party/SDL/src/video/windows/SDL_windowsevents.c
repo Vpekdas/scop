@@ -51,6 +51,10 @@
 #include "wmmsg.h"
 #endif
 
+#ifdef HAVE_SHOBJIDL_CORE_H
+#include <shobjidl_core.h>
+#endif
+
 #ifdef SDL_PLATFORM_GDK
 #include "../../core/gdk/SDL_gdk.h"
 #endif
@@ -1640,7 +1644,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             POINT cursorPos;
             GetCursorPos(&cursorPos);
             ScreenToClient(hwnd, &cursorPos);
-            PostMessage(hwnd, WM_MOUSEMOVE, 0, cursorPos.x | cursorPos.y << 16);
+            PostMessage(hwnd, WM_MOUSEMOVE, 0, cursorPos.x | (((Uint32)((Sint16)cursorPos.y)) << 16));
         }
     } break;
 
@@ -1792,7 +1796,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
         }
 
         if (!data->disable_move_size_events) {
-            if (GetClientRect(hwnd, &rect) && !WIN_IsRectEmpty(&rect)) {
+            if (GetClientRect(hwnd, &rect) && WIN_WindowRectValid(&rect)) {
                 ClientToScreen(hwnd, (LPPOINT) &rect);
                 ClientToScreen(hwnd, (LPPOINT) &rect + 1);
 
@@ -1804,7 +1808,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
             }
 
             // Moving the window from one display to another can change the size of the window (in the handling of SDL_EVENT_WINDOW_MOVED), so we need to re-query the bounds
-            if (GetClientRect(hwnd, &rect) && !WIN_IsRectEmpty(&rect)) {
+            if (GetClientRect(hwnd, &rect) && WIN_WindowRectValid(&rect)) {
                 w = rect.right;
                 h = rect.bottom;
 
@@ -1859,6 +1863,13 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
     {
         if (wParam == (UINT_PTR)SDL_IterateMainCallbacks) {
             SDL_OnWindowLiveResizeUpdate(data->window);
+
+#if !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
+            // Make sure graphics operations are complete for smooth refresh
+            if (data->videodata->DwmFlush) {
+                data->videodata->DwmFlush();
+            }
+#endif
             return 0;
         }
     } break;
@@ -2084,7 +2095,7 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                 RECT rect;
                 float x, y;
 
-                if (!GetClientRect(hwnd, &rect) || WIN_IsRectEmpty(&rect)) {
+                if (!GetClientRect(hwnd, &rect) || !WIN_WindowRectValid(&rect)) {
                     if (inputs) {
                         SDL_small_free(inputs, isstack);
                     }
@@ -2423,6 +2434,12 @@ LRESULT CALLBACK WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 #endif // !defined(SDL_PLATFORM_XBOXONE) && !defined(SDL_PLATFORM_XBOXSERIES)
     }
+
+#ifdef HAVE_SHOBJIDL_CORE_H
+    if (msg == data->videodata->WM_TASKBAR_BUTTON_CREATED) {
+        data->videodata->taskbar_button_created = true;
+    }
+#endif
 
     // If there's a window proc, assume it's going to handle messages
     if (data->wndproc) {
