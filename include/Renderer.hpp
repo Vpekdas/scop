@@ -1,10 +1,7 @@
 #pragma once
 
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_video.h>
 #include <glad/glad.h>
-
-#include <SDL3/SDL_opengl.h>
 
 #include "Model.hpp"
 #include "vector.hpp"

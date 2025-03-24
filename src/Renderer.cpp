@@ -166,6 +166,7 @@ void Renderer::mainLoop() {
     _texturedShader.Bind();
     _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     _texturedShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
+
     Texture texture(_texturePath);
     texture.Bind();
     _texturedShader.setUniform1i("u_Texture", 0);
@@ -177,7 +178,7 @@ void Renderer::mainLoop() {
     _faceShader.Unbind();
     _texturedShader.Unbind();
 
-    float angle = 0.0f, cameraRotationAngle = 0.0f, red = 0.0f, green = 0.0f;
+    float cameraRotationAngle = 0.0f, red = 0.0f, green = 0.0f;
     RotationAxis activeAxis = RotationAxis::NONE;
 
     Matrix4 translateToOrigin = Matrix4::translation(-centroid);
@@ -185,8 +186,9 @@ void Renderer::mainLoop() {
 
     bool running = true, textureMode = false;
 
-    while (running) {
+    Matrix4 accumulatedRotationMatrix = Matrix4(1.0f);
 
+    while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
@@ -196,33 +198,35 @@ void Renderer::mainLoop() {
             }
         }
 
-        angle += ROTATION_SPEED;
+        if (activeAxis != RotationAxis::NONE) {
 
-        Matrix4 rotationMatrix;
-        switch (activeAxis) {
-        case RotationAxis::X:
-            rotationMatrix = Matrix4::rotationX(angle);
-            break;
-        case RotationAxis::Y:
-            rotationMatrix = Matrix4::rotationY(angle);
-            break;
-        case RotationAxis::Z:
-            rotationMatrix = Matrix4::rotationZ(angle);
-            break;
-        case RotationAxis::NONE:
-            rotationMatrix = Matrix4(1.0f);
-            break;
+            Matrix4 rotationMatrix;
+            switch (activeAxis) {
+            case RotationAxis::X:
+                rotationMatrix = Matrix4::rotationX(ROTATION_SPEED);
+                break;
+            case RotationAxis::Y:
+                rotationMatrix = Matrix4::rotationY(ROTATION_SPEED);
+                break;
+            case RotationAxis::Z:
+                rotationMatrix = Matrix4::rotationZ(ROTATION_SPEED);
+                break;
+            case RotationAxis::NONE:
+                rotationMatrix = Matrix4(1.0f);
+                break;
+            }
+
+            // Accumulate the rotation, so I don't need to set an angle variable.
+            // Matrices are continually multiplied by rotation.
+            accumulatedRotationMatrix = accumulatedRotationMatrix * rotationMatrix;
         }
 
         viewMatrix = Matrix4::translation(-camera);
-        Matrix4 modelMatrix = translateToOrigin * rotationMatrix * translateBack;
+        Matrix4 modelMatrix = translateToOrigin * accumulatedRotationMatrix * translateBack;
 
         // Rotation for camera with arrow key.
         Matrix4 cameraRotationMatrix = Matrix4::rotationY(cameraRotationAngle);
         viewMatrix = cameraRotationMatrix * Matrix4::translation(-camera);
-
-        // Rotating model.
-        modelMatrix = translateToOrigin * rotationMatrix * translateBack;
 
         // Smooth background color change.
         red = (sin(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
@@ -235,9 +239,7 @@ void Renderer::mainLoop() {
             _texturedShader.Bind();
             _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
             _texturedShader.setUniformMat4f("u_ModelMatrix", modelMatrix);
-        }
-
-        else {
+        } else {
             _faceShader.Bind();
             _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
             _faceShader.setUniformMat4f("u_ModelMatrix", modelMatrix);

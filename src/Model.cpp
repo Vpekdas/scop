@@ -1,10 +1,9 @@
 #include "../include/Model.hpp"
+#include <exception>
 #include <fstream>
-#include <iostream>
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
-#include <string>
 #include <unordered_map>
 
 Model::Model()
@@ -27,7 +26,7 @@ void Model::calculateCentroid() {
 
 void Model::calculateTextureCoordinates() {
     if (m_vertices.empty())
-        throw std::runtime_error("Error: no vertices are found in obj.\n");
+        throw std::runtime_error("Error: no vertices are found in obj.");
 
     // Using bounding box method was creating more stretches than this method.
     // So I'm just creating UV map for each triangles.
@@ -52,13 +51,13 @@ void Model::calculateTextureCoordinates() {
 
 void Model::parse(const std::string &filename) {
     if (filename.find(".obj") == std::string::npos) {
-        throw std::runtime_error("Error: file is not an obj.\n");
+        throw std::runtime_error("Error: file is not an obj.");
     }
 
     std::ifstream infile(filename);
 
     if (!infile.is_open()) {
-        const std::string error = "Error: Cannot open file: " + filename + "\n";
+        const std::string error = "Error: Cannot open file: " + filename;
         throw std::runtime_error(error);
     }
 
@@ -132,6 +131,12 @@ void Model::parse(const std::string &filename) {
                             textureIndex = std::stoul(index) - 1;
                         }
                     } else {
+                        // Ensure that the indices exist.
+                        // Protect the case that face is parsed but indices is not in file.
+                        if (vertexIndex >= m_textureIndices.size()) {
+                            throw std::runtime_error(
+                                "Error: Vertex index out of bounds while accessing texture indices.");
+                        }
                         textureIndex = m_textureIndices[vertexIndex];
                     }
 
@@ -193,6 +198,12 @@ void Model::parse(const std::string &filename) {
                                 textureIndex = std::stoul(index) - 1;
                             }
                         } else {
+                            // Ensure that the indices exist.
+                            // Protect the case that face is parsed but indices is not in file.
+                            if (vertexIndex >= m_textureIndices.size()) {
+                                throw std::runtime_error(
+                                    "Error: Vertex index out of bounds while accessing texture indices.");
+                            }
                             textureIndex = m_textureIndices[vertexIndex];
                         }
 

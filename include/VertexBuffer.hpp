@@ -1,7 +1,5 @@
 #pragma once
 
-#include <glad/glad.h>
-
 // VertexBuffer is a buffer that contains unique vertex positions followed by their texture coordinates in my case.
 // Since OpenGL is a state machine, we only need to bind the buffer, and it will handle the rendering.
 class VertexBuffer {
