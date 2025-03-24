@@ -2,6 +2,7 @@
 
 #include "../include/vector.hpp"
 #include <iostream>
+#include <vector>
 
 class Model {
     public:
