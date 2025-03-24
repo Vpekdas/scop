@@ -1,5 +1,4 @@
 #pragma once
-#include <cmath>
 
 struct Vector2 {
     Vector2() : u(0), v(0) {

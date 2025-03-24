@@ -1,7 +1,5 @@
 #pragma once
 
-#include <glad/glad.h>
-
 // An Index Buffer is an efficient way to render 3D models.
 // Instead of storing duplicate vertices (positions and texture coordinates in my case),
 // we store unique vertices and create indices to reference them.

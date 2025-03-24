@@ -13,21 +13,19 @@ Texture::Texture(const std::string &path)
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
     // GL REPEAT ensure that if a texture coordinates are not normalized, it will repeat it seamlessly.
-    
+
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
 
     GLenum format = (m_BPP == 24) ? GL_RGB : GL_RGBA;
 
-    GlCall(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_Width, m_Height, 0, format, GL_UNSIGNED_BYTE, m_LocalBuffer));
+    GlCall(
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_Width, m_Height, 0, format, GL_UNSIGNED_BYTE, m_LocalBuffer.get()));
 
     GlCall(glBindTexture(GL_TEXTURE_2D, 0));
 }
 
 Texture::~Texture() {
-    if (m_LocalBuffer) {
-        delete[] m_LocalBuffer;
-    }
 }
 
 void Texture::Bind(unsigned int slot) const {
@@ -38,11 +36,14 @@ void Texture::Bind(unsigned int slot) const {
 void Texture::Unbind() {
 }
 
+
+// https://www.ryanjuckett.com/parsing-colors-in-a-tga-file/
+// https://www.gamers.org/dEngine/quake3/TGA.txt
 void Texture::LoadTGA(const std::string &filename) {
     std::ifstream file(filename, std::ios::binary);
 
     if (!file.is_open()) {
-        throw std::runtime_error("Unable to load TGA File!");
+        throw std::runtime_error("Error: unable to load TGA File!");
     }
 
     unsigned char length = 0;
@@ -59,9 +60,13 @@ void Texture::LoadTGA(const std::string &filename) {
     file.read(reinterpret_cast<char *>(&bits), sizeof(bits));
     file.seekg(length + 1, std::ios::cur);
 
+    if (width == 0 || height == 0 || (bits != 24 && bits != 32 && bits != 16)) {
+        throw std::runtime_error("Error: Invalid TGA file: Unsupported dimensions or pixel format.");
+    }
+
     int channels = bits / 8;
     int stride = channels * width;
-    m_LocalBuffer = new unsigned char[stride * height];
+    m_LocalBuffer = std::make_unique<unsigned char[]>(stride * height);
 
     if (imageType != 10) { // Not RLE compressed
         if (bits == 24 || bits == 32) {
@@ -69,6 +74,7 @@ void Texture::LoadTGA(const std::string &filename) {
                 unsigned char *pLine = &m_LocalBuffer[stride * y];
                 file.read(reinterpret_cast<char *>(pLine), stride);
                 for (int i = 0; i < stride; i += channels) {
+                    // Swap because TGA store in BGR order.
                     std::swap(pLine[i], pLine[i + 2]);
                 }
             }
@@ -77,8 +83,6 @@ void Texture::LoadTGA(const std::string &filename) {
             int r = 0, g = 0, b = 0;
             channels = 3;
             stride = channels * width;
-            delete[] m_LocalBuffer;
-            m_LocalBuffer = new unsigned char[stride * height];
             for (int i = 0; i < width * height; ++i) {
                 file.read(reinterpret_cast<char *>(&pixels), sizeof(pixels));
                 b = (pixels & 0x1f) << 3;
@@ -89,7 +93,7 @@ void Texture::LoadTGA(const std::string &filename) {
                 m_LocalBuffer[i * 3 + 2] = b;
             }
         } else {
-            throw std::runtime_error("Unsupported pixel format!");
+            throw std::runtime_error("Error: Unsupported pixel format!");
         }
     } else { // RLE compressed
         unsigned char rleID = 0;
