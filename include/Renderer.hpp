@@ -46,8 +46,8 @@ class Renderer {
     // Handle input events, update matrices, and run the render loop.
     void mainLoop();
 
-    void handleInput(const SDL_Event &event, bool &running, bool &textureMode, Vector3 &camera,
-                     RotationAxis &activeAxis, float &cameraRotationAngle);
+    void handleInput(const SDL_Event &event, bool &running, bool &transitioning, Vector3 &camera,
+                     RotationAxis &activeAxis, float &cameraRotationAngle, float &targetBlendFactor);
 
     private:
     SDL_Window *_window;
