@@ -1,5 +1,4 @@
 #include "../include/Model.hpp"
-#include <exception>
 #include <fstream>
 #include <numeric>
 #include <sstream>

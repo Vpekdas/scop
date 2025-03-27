@@ -5,7 +5,6 @@
 #include "../include/VertexBuffer.hpp"
 #include "../include/colors.hpp"
 #include "../include/vector.hpp"
-#include "SDL3/SDL_keycode.h"
 
 #include <alloca.h>
 #include <functional>
@@ -77,11 +76,14 @@ Renderer::~Renderer() {
 
 // Anonymous function (lambda) like in JavaScript, [&] captures all variables by reference, allowing them to be
 // modified.
-void Renderer::handleInput(const SDL_Event &event, bool &running, bool &textureMode, Vector3 &camera,
-                           RotationAxis &activeAxis, float &cameraRotationAngle) {
+void Renderer::handleInput(const SDL_Event &event, bool &running, bool &transitioning, Vector3 &camera,
+                           RotationAxis &activeAxis, float &cameraRotationAngle, float &targetBlendFactor) {
     static const std::unordered_map<int, std::function<void()> > keyBindings = {
-        {SDLK_T, [&]() { textureMode = true; }},
-        {SDLK_F, [&]() { textureMode = false; }},
+        {SDLK_T,
+         [&]() {
+             transitioning = true;
+             targetBlendFactor = (targetBlendFactor == 1.0f) ? 0.0f : 1.0f;
+         }},
         {SDLK_F1, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_POINT); }},
         {SDLK_F2, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }},
         {SDLK_F3, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); }},
@@ -155,28 +157,20 @@ void Renderer::mainLoop() {
     Vector3 centroid = _model._centroid;
 
     // Set the shader that display faces.
-    Shader _faceShader("../res/Basic.glsl");
-    _faceShader.Bind();
-    _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
-    _faceShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
-    _faceShader.Unbind();
-
-    // Set the shader that display a texture.
-    Shader _texturedShader("../res/Textured.glsl");
-    _texturedShader.Bind();
-    _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
-    _texturedShader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
+    Shader shader("../res/Basic.glsl");
+    shader.Bind();
+    shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
+    shader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
 
     Texture texture(_texturePath);
     texture.Bind();
-    _texturedShader.setUniform1i("u_Texture", 0);
+    shader.setUniform1i("u_Texture", 0);
 
     // Unbind all objects.
     GlCall(glBindVertexArray(0));
     vb.Unbind();
     ib.Unbind();
-    _faceShader.Unbind();
-    _texturedShader.Unbind();
+    shader.Unbind();
 
     float cameraRotationAngle = 0.0f, red = 0.0f, green = 0.0f;
     RotationAxis activeAxis = RotationAxis::NONE;
@@ -184,9 +178,9 @@ void Renderer::mainLoop() {
     Matrix4 translateToOrigin = Matrix4::translation(-centroid);
     Matrix4 translateBack = Matrix4::translation(centroid);
 
-    bool running = true, textureMode = false;
-
     Matrix4 accumulatedRotationMatrix = Matrix4(1.0f);
+    float blendFactor = 0.0f, blendSpeed = 0.02f, targetBlendFactor = 0.0f;
+    bool running = true, transitioning = false;
 
     while (running) {
         SDL_Event event;
@@ -194,7 +188,23 @@ void Renderer::mainLoop() {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN) {
-                handleInput(event, running, textureMode, camera, activeAxis, cameraRotationAngle);
+                handleInput(event, running, transitioning, camera, activeAxis, cameraRotationAngle, targetBlendFactor);
+            }
+        }
+
+        if (transitioning) {
+            if (blendFactor < targetBlendFactor) {
+                blendFactor += blendSpeed;
+                if (blendFactor >= targetBlendFactor) {
+                    blendFactor = targetBlendFactor;
+                    transitioning = false;
+                }
+            } else if (blendFactor > targetBlendFactor) {
+                blendFactor -= blendSpeed;
+                if (blendFactor <= targetBlendFactor) {
+                    blendFactor = targetBlendFactor;
+                    transitioning = false;
+                }
             }
         }
 
@@ -234,16 +244,10 @@ void Renderer::mainLoop() {
         GlCall(glClearColor(red, green, 0.5f, 1.0f));
         GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
-        // Select either the shader that display face or texture.
-        if (textureMode) {
-            _texturedShader.Bind();
-            _texturedShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
-            _texturedShader.setUniformMat4f("u_ModelMatrix", modelMatrix);
-        } else {
-            _faceShader.Bind();
-            _faceShader.setUniformMat4f("u_ViewMatrix", viewMatrix);
-            _faceShader.setUniformMat4f("u_ModelMatrix", modelMatrix);
-        }
+        shader.Bind();
+        shader.setUniform1f("u_ModeFactor", blendFactor);
+        shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
+        shader.setUniformMat4f("u_ModelMatrix", modelMatrix);
 
         // Select which buffer will be used to render.
         GlCall(glBindVertexArray(_vao));
