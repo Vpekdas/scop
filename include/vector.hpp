@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 struct Vector2 {
     Vector2() : u(0), v(0) {
     }
@@ -21,3 +23,5 @@ struct Vector3 {
 
     float x, y, z;
 };
+
+std::ostream &operator<<(std::ostream &out, const Vector2 &vec2);

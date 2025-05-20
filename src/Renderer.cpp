@@ -3,14 +3,17 @@
 #include "../include/Shader.hpp"
 #include "../include/Texture.hpp"
 #include "../include/VertexBuffer.hpp"
-#include "../include/colors.hpp"
+#include "../include/camera.hpp"
 #include "../include/vector.hpp"
 
 #include <alloca.h>
+#include <filesystem>
 #include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+static Uint64 lastTime = SDL_GetPerformanceCounter();
 
 void GlClearError() {
     while (glGetError() != GL_NO_ERROR)
@@ -26,7 +29,7 @@ bool GlLogCall(const char *function, const char *file, unsigned int line) {
 }
 
 Renderer::Renderer(const std::string &file, const std::string &texturePath)
-    : _window(nullptr), _gl_context(nullptr), _vao(0), _model(), _texturePath(texturePath) {
+    : _window(nullptr), _GLContext(nullptr), _VAO(0), _model(), _texturePath(texturePath) {
 
     _model.parse(file);
 
@@ -40,73 +43,105 @@ Renderer::Renderer(const std::string &file, const std::string &texturePath)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 
-    // Create Window.
     _window = SDL_CreateWindow(W_TITLE, W_WIDTH, W_HEIGHT, SDL_WINDOW_OPENGL);
 
     if (!_window) {
         throw std::runtime_error(SDL_GetError());
     }
 
-    // Create an OpenGL rendering context for the window.
-    _gl_context = SDL_GL_CreateContext(_window);
+    _GLContext = SDL_GL_CreateContext(_window);
 
-    if (!_gl_context) {
+    if (!_GLContext) {
         throw std::runtime_error(SDL_GetError());
     }
 
-    SDL_GL_MakeCurrent(_window, _gl_context);
+    SDL_GL_MakeCurrent(_window, _GLContext);
 
     // Limiting frame rate (VSync).
     SDL_GL_SetSwapInterval(1);
 
-    // Initialize Glad so we can use OpenGL functions.
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         throw std::runtime_error(SDL_GetError());
     }
 
-    std::cout << BOLD_ITALIC_CYAN << "Using Renderer: " << glGetString(GL_RENDERER) << " " << glGetString(GL_VERSION)
-              << RESET << std::endl;
+    std::cout << "Using Renderer: " << glGetString(GL_RENDERER) << " " << glGetString(GL_VERSION) << std::endl;
 }
 
 Renderer::~Renderer() {
     SDL_DestroyWindow(_window);
-    SDL_GL_DestroyContext(_gl_context);
+    SDL_GL_DestroyContext(_GLContext);
     SDL_Quit();
 }
 
-// Anonymous function (lambda) like in JavaScript, [&] captures all variables by reference, allowing them to be
-// modified.
-void Renderer::handleInput(const SDL_Event &event, bool &running, bool &transitioning, Vector3 &camera,
-                           RotationAxis &activeAxis, float &cameraRotationAngle, float &targetBlendFactor) {
-    static const std::unordered_map<int, std::function<void()> > keyBindings = {
-        {SDLK_T,
-         [&]() {
-             transitioning = true;
-             targetBlendFactor = (targetBlendFactor == 1.0f) ? 0.0f : 1.0f;
-         }},
+// [&] captures all variables by reference, allowing them to be modified.
+void Renderer::handleInput(const SDL_Event &event, bool &run, bool &trans, RotationAxis &axis, float &blendFactor) {
+
+    // Creates a map of function.
+    static const std::unordered_map<int, std::function<void()>> keyBindings = {
         {SDLK_F1, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_POINT); }},
         {SDLK_F2, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }},
         {SDLK_F3, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); }},
-        {SDLK_ESCAPE, [&]() { running = false; }},
-        {SDLK_S, [&]() { camera.z += CAMERA_SPEED; }},
-        {SDLK_W, [&]() { camera.z -= CAMERA_SPEED; }},
-        {SDLK_D, [&]() { camera.x += CAMERA_SPEED; }},
-        {SDLK_A, [&]() { camera.x -= CAMERA_SPEED; }},
-        {SDLK_UP, [&]() { camera.y += CAMERA_SPEED; }},
-        {SDLK_DOWN, [&]() { camera.y -= CAMERA_SPEED; }},
-        {SDLK_LEFT, [&]() { cameraRotationAngle += CAMERA_SPEED; }},
-        {SDLK_RIGHT, [&]() { cameraRotationAngle -= CAMERA_SPEED; }},
-        {SDLK_X, [&]() { activeAxis = RotationAxis::X; }},
-        {SDLK_Y, [&]() { activeAxis = RotationAxis::Y; }},
-        {SDLK_Z, [&]() { activeAxis = RotationAxis::Z; }},
-        {SDLK_SPACE, [&]() { activeAxis = RotationAxis::NONE; }},
-
+        {SDLK_ESCAPE, [&]() { run = false; }},
+        {SDLK_T,
+         [&trans, &blendFactor]() {
+             trans = true;
+             blendFactor = (blendFactor == 1.0f) ? 0.0f : 1.0f;
+         }},
+        {SDLK_X, [&]() { axis = RotationAxis::X; }},
+        {SDLK_Y, [&]() { axis = RotationAxis::Y; }},
+        {SDLK_Z, [&]() { axis = RotationAxis::Z; }},
+        {SDLK_SPACE, [&]() { axis = RotationAxis::NONE; }},
     };
 
     auto it = keyBindings.find(event.key.key);
     if (it != keyBindings.end()) {
         it->second();
     }
+}
+
+Matrix4 Renderer::accumulatedMatrix(RotationAxis activeAxis, const Matrix4 &accumulatedRotationMatrix) {
+    Matrix4 rotationMatrix = Matrix4(1.0f);
+
+    switch (activeAxis) {
+    case RotationAxis::X:
+        rotationMatrix = Matrix4::rotationX(ROTATION_SPEED);
+        break;
+    case RotationAxis::Y:
+        rotationMatrix = Matrix4::rotationY(ROTATION_SPEED);
+        break;
+    case RotationAxis::Z:
+        rotationMatrix = Matrix4::rotationZ(ROTATION_SPEED);
+        break;
+    case RotationAxis::NONE:
+        break;
+    }
+
+    return accumulatedRotationMatrix * rotationMatrix;
+}
+
+void Renderer::handleTextureTrans(bool &transitioning, float &blendFactor, float &targetBlendFactor) {
+    if (transitioning) {
+        if (blendFactor < targetBlendFactor) {
+            blendFactor += BLEND_SPEED;
+            if (blendFactor >= targetBlendFactor) {
+                blendFactor = targetBlendFactor;
+                transitioning = false;
+            }
+        } else if (blendFactor > targetBlendFactor) {
+            blendFactor -= BLEND_SPEED;
+            if (blendFactor <= targetBlendFactor) {
+                blendFactor = targetBlendFactor;
+                transitioning = false;
+            }
+        }
+    }
+}
+
+void Renderer::handleBackgroundColor(float &red, float &green) {
+    red = (sin(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
+    green = (cos(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
+    GlCall(glClearColor(red, green, 0.5f, 1.0f));
+    GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 }
 
 void Renderer::mainLoop() {
@@ -123,14 +158,10 @@ void Renderer::mainLoop() {
     GlCall(glEnable(GL_BLEND));
     GlCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
-    // Create and bind Vertex Array.
-    // Configure the Vertex Array Object to tell OpenGL how to interpret the vertex buffer data.
-    GlCall(glGenVertexArrays(1, &_vao));
-    GlCall(glBindVertexArray(_vao));
+    GlCall(glGenVertexArrays(1, &_VAO));
+    GlCall(glBindVertexArray(_VAO));
 
-    // Create and bind Vertex Buffer.
-    // It contains 3 float x, y and z as positions then u and v as texture coordinates.
-    VertexBuffer vb(_model.m_vertexBuffer.data(), _model.m_vertexBuffer.size() * sizeof(float));
+    VertexBuffer vb(_model._vertexBuffer.data(), _model._vertexBuffer.size() * sizeof(float));
 
     // Set up vertex attribute pointers. The first 3 float are the positions.
     // Vertex positions (attribute 0) on shader.
@@ -142,22 +173,17 @@ void Renderer::mainLoop() {
     GlCall(glEnableVertexAttribArray(1));
     GlCall(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (const void *)(3 * sizeof(float))));
 
-    // Create and bind Vertex Indices Buffer.
-    // OpenGL will uses the index buffer to reference vertices and draw triangles efficiently.
-    IndexBuffer ib(_model.m_verticesIndices.data(), _model.m_verticesIndices.size());
+    IndexBuffer ib(_model._verticesIndices.data(), _model._verticesIndices.size());
 
-    // Set Initial Camera position.
-    Vector3 camera(0, 0, 10);
-    Matrix4 viewMatrix = Matrix4::translation(-camera);
+    Camera camera(0.0f, 0.0f, 10.0f);
+    Matrix4 viewMatrix = Matrix4::translation(-camera.pos);
     Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
-
-    // Usefull for rotating model by his mass center.
-    _model.calculateCentroid();
 
     Vector3 centroid = _model._centroid;
 
-    // Set the shader that display faces.
-    Shader shader("../res/Basic.glsl");
+    std::filesystem::path shaderPath = std::filesystem::current_path() / "res" / "Basic.glsl";
+
+    Shader shader(shaderPath);
     shader.Bind();
     shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
     shader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
@@ -166,20 +192,20 @@ void Renderer::mainLoop() {
     texture.Bind();
     shader.setUniform1i("u_Texture", 0);
 
-    // Unbind all objects.
     GlCall(glBindVertexArray(0));
     vb.Unbind();
     ib.Unbind();
     shader.Unbind();
 
-    float cameraRotationAngle = 0.0f, red = 0.0f, green = 0.0f;
+    float red = 0.0f, green = 0.0f;
     RotationAxis activeAxis = RotationAxis::NONE;
 
     Matrix4 translateToOrigin = Matrix4::translation(-centroid);
     Matrix4 translateBack = Matrix4::translation(centroid);
-
     Matrix4 accumulatedRotationMatrix = Matrix4(1.0f);
-    float blendFactor = 0.0f, blendSpeed = 0.02f, targetBlendFactor = 0.0f;
+
+    float deltaTime = 0.0f;
+    float blendFactor = 0.0f, targetBlendFactor = 0.0f;
     bool running = true, transitioning = false;
 
     while (running) {
@@ -188,73 +214,35 @@ void Renderer::mainLoop() {
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN) {
-                handleInput(event, running, transitioning, camera, activeAxis, cameraRotationAngle, targetBlendFactor);
+                handleInput(event, running, transitioning, activeAxis, targetBlendFactor);
             }
         }
 
-        if (transitioning) {
-            if (blendFactor < targetBlendFactor) {
-                blendFactor += blendSpeed;
-                if (blendFactor >= targetBlendFactor) {
-                    blendFactor = targetBlendFactor;
-                    transitioning = false;
-                }
-            } else if (blendFactor > targetBlendFactor) {
-                blendFactor -= blendSpeed;
-                if (blendFactor <= targetBlendFactor) {
-                    blendFactor = targetBlendFactor;
-                    transitioning = false;
-                }
-            }
-        }
+        Uint64 currentTime = SDL_GetPerformanceCounter();
+        deltaTime = (currentTime - lastTime) / (float)SDL_GetPerformanceFrequency();
+        lastTime = currentTime;
 
-        if (activeAxis != RotationAxis::NONE) {
+        camera.handleInput(deltaTime);
 
-            Matrix4 rotationMatrix;
-            switch (activeAxis) {
-            case RotationAxis::X:
-                rotationMatrix = Matrix4::rotationX(ROTATION_SPEED);
-                break;
-            case RotationAxis::Y:
-                rotationMatrix = Matrix4::rotationY(ROTATION_SPEED);
-                break;
-            case RotationAxis::Z:
-                rotationMatrix = Matrix4::rotationZ(ROTATION_SPEED);
-                break;
-            case RotationAxis::NONE:
-                rotationMatrix = Matrix4(1.0f);
-                break;
-            }
+        handleTextureTrans(transitioning, blendFactor, targetBlendFactor);
 
-            // Accumulate the rotation, so I don't need to set an angle variable.
-            // Matrices are continually multiplied by rotation.
-            accumulatedRotationMatrix = accumulatedRotationMatrix * rotationMatrix;
-        }
-
-        viewMatrix = Matrix4::translation(-camera);
-        Matrix4 modelMatrix = translateToOrigin * accumulatedRotationMatrix * translateBack;
-
-        // Rotation for camera with arrow key.
-        Matrix4 cameraRotationMatrix = Matrix4::rotationY(cameraRotationAngle);
-        viewMatrix = cameraRotationMatrix * Matrix4::translation(-camera);
-
-        // Smooth background color change.
-        red = (sin(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
-        green = (cos(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
-        GlCall(glClearColor(red, green, 0.5f, 1.0f));
-        GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+        handleBackgroundColor(red, green);
 
         shader.Bind();
         shader.setUniform1f("u_ModeFactor", blendFactor);
+
+        // Rotation for camera with arrow key.
+        viewMatrix = Matrix4::rotationY(camera.rotationAngle) * Matrix4::translation(-camera.pos);
         shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
+
+        accumulatedRotationMatrix = accumulatedMatrix(activeAxis, accumulatedRotationMatrix);
+        Matrix4 modelMatrix = translateToOrigin * accumulatedRotationMatrix * translateBack;
         shader.setUniformMat4f("u_ModelMatrix", modelMatrix);
 
-        // Select which buffer will be used to render.
-        GlCall(glBindVertexArray(_vao));
+        GlCall(glBindVertexArray(_VAO));
         ib.Bind();
 
-        // Draw triangle by looking at indices.
-        GlCall(glDrawElements(GL_TRIANGLES, _model.m_verticesIndices.size(), GL_UNSIGNED_INT, nullptr));
+        GlCall(glDrawElements(GL_TRIANGLES, _model._verticesIndices.size(), GL_UNSIGNED_INT, nullptr));
 
         SDL_GL_SwapWindow(_window);
     }

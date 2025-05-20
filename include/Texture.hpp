@@ -23,16 +23,16 @@ class Texture {
     void LoadTGA(const std::string &filename);
 
     private:
-    unsigned int m_RendererID;
-    std::string m_FilePath;
-    std::unique_ptr<unsigned char[]> m_LocalBuffer;
-    int m_Width, m_Height, m_BPP;
+    unsigned int _rendererID;
+    std::string _filePath;
+    std::unique_ptr<unsigned char[]> _localBuffer;
+    int _width, _height, _BPP;
 
     inline int GetWidth() const {
-        return m_Width;
+        return _width;
     }
 
     inline int GetHeight() const {
-        return m_Height;
+        return _height;
     }
 };
