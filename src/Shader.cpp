@@ -82,10 +82,6 @@ void Shader::Unbind() const {
     GlCall(glUseProgram(0));
 }
 
-void Shader::setUniform4f(const std::string &name, float v0, float v1, float v2, float v3) {
-    GlCall(glUniform4f(getUniformLocation(name), v0, v1, v2, v3));
-}
-
 void Shader::setUniformMat4f(const std::string &name, const Matrix4 &matrix) {
     GlCall(glUniformMatrix4fv(getUniformLocation(name), 1, GL_FALSE, &matrix._m[0][0]));
 }
@@ -99,8 +95,8 @@ void Shader::setUniform1f(const std::string &name, float value) {
 }
 
 int Shader::getUniformLocation(const std::string &name) {
-    if (m_uniformCache.find(name) != m_uniformCache.end()) {
-        return m_uniformCache[name];
+    if (_uniformCache.find(name) != _uniformCache.end()) {
+        return _uniformCache[name];
     }
 
     int location = glGetUniformLocation(_rendererId, name.c_str());
@@ -109,6 +105,6 @@ int Shader::getUniformLocation(const std::string &name) {
         // Model will still be displayed.
         std::cerr << "Warning: uniform '" << name << "' doesn't exist!" << std::endl;
     }
-    m_uniformCache[name] = location;
+    _uniformCache[name] = location;
     return location;
 }

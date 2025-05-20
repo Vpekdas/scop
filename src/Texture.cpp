@@ -4,23 +4,23 @@
 #include <vector>
 
 Texture::Texture(const std::string &path)
-    : m_RendererID(0), m_FilePath(path), m_LocalBuffer(nullptr), m_Width(0), m_Height(0), m_BPP(0) {
+    : _rendererID(0), _filePath(path), _localBuffer(nullptr), _width(0), _height(0), _BPP(0) {
     LoadTGA(path);
 
-    GlCall(glGenTextures(1, &m_RendererID));
-    GlCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
+    GlCall(glGenTextures(1, &_rendererID));
+    GlCall(glBindTexture(GL_TEXTURE_2D, _rendererID));
 
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-    // GL REPEAT ensure that if a texture coordinates are not normalized, it will repeat it seamlessly.
+    // GL REPEAT ensure that if a texture coordinates are not normalized, it will
+    // repeat it seamlessly.
 
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
     GlCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
 
-    GLenum format = (m_BPP == 24) ? GL_RGB : GL_RGBA;
+    GLenum format = (_BPP == 24) ? GL_RGB : GL_RGBA;
 
-    GlCall(
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_Width, m_Height, 0, format, GL_UNSIGNED_BYTE, m_LocalBuffer.get()));
+    GlCall(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, _width, _height, 0, format, GL_UNSIGNED_BYTE, _localBuffer.get()));
 
     GlCall(glBindTexture(GL_TEXTURE_2D, 0));
 }
@@ -30,12 +30,11 @@ Texture::~Texture() {
 
 void Texture::Bind(unsigned int slot) const {
     GlCall(glActiveTexture(GL_TEXTURE0 + slot));
-    GlCall(glBindTexture(GL_TEXTURE_2D, m_RendererID));
+    GlCall(glBindTexture(GL_TEXTURE_2D, _rendererID));
 }
 
 void Texture::Unbind() {
 }
-
 
 // https://www.ryanjuckett.com/parsing-colors-in-a-tga-file/
 // https://www.gamers.org/dEngine/quake3/TGA.txt
@@ -66,12 +65,12 @@ void Texture::LoadTGA(const std::string &filename) {
 
     int channels = bits / 8;
     int stride = channels * width;
-    m_LocalBuffer = std::make_unique<unsigned char[]>(stride * height);
+    _localBuffer = std::make_unique<unsigned char[]>(stride * height);
 
     if (imageType != 10) { // Not RLE compressed
         if (bits == 24 || bits == 32) {
             for (int y = 0; y < height; ++y) {
-                unsigned char *pLine = &m_LocalBuffer[stride * y];
+                unsigned char *pLine = &_localBuffer[stride * y];
                 file.read(reinterpret_cast<char *>(pLine), stride);
                 for (int i = 0; i < stride; i += channels) {
                     // Swap because TGA store in BGR order.
@@ -88,9 +87,9 @@ void Texture::LoadTGA(const std::string &filename) {
                 b = (pixels & 0x1f) << 3;
                 g = ((pixels >> 5) & 0x1f) << 3;
                 r = ((pixels >> 10) & 0x1f) << 3;
-                m_LocalBuffer[i * 3 + 0] = r;
-                m_LocalBuffer[i * 3 + 1] = g;
-                m_LocalBuffer[i * 3 + 2] = b;
+                _localBuffer[i * 3 + 0] = r;
+                _localBuffer[i * 3 + 1] = g;
+                _localBuffer[i * 3 + 2] = b;
             }
         } else {
             throw std::runtime_error("Error: Unsupported pixel format!");
@@ -106,10 +105,10 @@ void Texture::LoadTGA(const std::string &filename) {
                 while (rleID--) {
                     file.read(reinterpret_cast<char *>(pColors.data()), channels);
                     for (int j = 0; j < channels; ++j) {
-                        m_LocalBuffer[colorsRead * channels + j] = pColors[j];
+                        _localBuffer[colorsRead * channels + j] = pColors[j];
                     }
                     if (channels == 4) {
-                        m_LocalBuffer[colorsRead * channels + 3] = pColors[3];
+                        _localBuffer[colorsRead * channels + 3] = pColors[3];
                     }
                     ++colorsRead;
                 }
@@ -118,10 +117,10 @@ void Texture::LoadTGA(const std::string &filename) {
                 file.read(reinterpret_cast<char *>(pColors.data()), channels);
                 while (rleID--) {
                     for (int j = 0; j < channels; ++j) {
-                        m_LocalBuffer[colorsRead * channels + j] = pColors[j];
+                        _localBuffer[colorsRead * channels + j] = pColors[j];
                     }
                     if (channels == 4) {
-                        m_LocalBuffer[colorsRead * channels + 3] = pColors[3];
+                        _localBuffer[colorsRead * channels + 3] = pColors[3];
                     }
                     ++colorsRead;
                 }
@@ -129,7 +128,7 @@ void Texture::LoadTGA(const std::string &filename) {
         }
     }
 
-    m_Width = width;
-    m_Height = height;
-    m_BPP = bits;
+    _width = width;
+    _height = height;
+    _BPP = bits;
 }
