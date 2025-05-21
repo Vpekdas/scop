@@ -60,7 +60,7 @@ cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=RELEASE
 cmake --build build/Release --config Release
 ```
 
-[!NOTE]
+> [!NOTE]
 On macOS, OpenGL is deprecated, so you might encounter warnings during the build process. However, these warnings do not cause any issues and can be safely ignored.
 
 ## Run
@@ -90,5 +90,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 ### Third-Party Licenses
 
-- **MiniLibX**, provided by École 42, is included in this project and is licensed under the [BSD 2-Clause License](minilibx-linux/README.md).  
-  Please refer to the linked file for full license terms.
+- **SDL** - Licensed under the [zlib License](third_party/SDL/README.md).
+- **Glad** - Licensed under [MIT License](third_party/glad/include/KHR/khrplatform.h).
+
