@@ -18,6 +18,23 @@ Scop is a project from the 42 Post-Common Core curriculum, designed to introduce
 
 The objective is to create a simple 3D OBJ renderer that displays textures and can rotate along all three axes.
 
+## Controls
+
+| **Key** | **Action** |
+|:-------:|------------|
+| `X`     | Rotate model around X-axis |
+| `Y`     | Rotate model around Y-axis |
+| `Z`     | Rotate model around Z-axis |
+| `Space` | Pause rotation |
+| `→`     | Rotate right |
+| `←`     | Rotate left |
+| `T`     | Enable texture mode |
+| `F`     | Enable face mode |
+| `F1`    | Switch to point mode |
+| `F2`    | Switch to line mode |
+| `F3`    | Switch to fill mode |
+| `ESC` or click the `X` (top-right corner) | Exit |
+
 ### Technologies used
 
 - C++: The primary programming language for the project.
