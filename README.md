@@ -2,6 +2,10 @@
 
 ## Screenshots
 
+
+https://github.com/user-attachments/assets/f34b98ba-7047-4418-b626-537d97f572d0
+
+
 ## Table of Contents
 1. [Description](#description)
 2. [Installation](#installation)
