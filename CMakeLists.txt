@@ -15,6 +15,14 @@ endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+if(APPLE)
+    add_definitions(-DUSE_METAL)
+    message(STATUS "Metal backend enabled for Apple platform")
+else()
+    add_definitions(-DUSE_OPENGL)
+    message(STATUS "OpenGL backend enabled")
+endif()
+
 add_executable(scop
     src/camera.cpp
     src/IndexBuffer.cpp

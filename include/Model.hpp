@@ -1,17 +1,11 @@
 #pragma once
 
 #include "../include/vector.hpp"
-#include <iostream>
 #include <vector>
 
 class Model {
     public:
-    Model();
-
-    // Open the .obj file and retrieve all the necessary information to create
-    // vertices. This includes parsing vertex positions (v), texture coordinates
-    // (vt), and face indices (f).
-    void parse(const std::string &filename);
+    Model(const std::string &filename);
 
     void triangulateFaces(const std::vector<std::string> &verticesString);
 
