@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../include/Renderer.hpp"
 #include <memory>
+#include <vector>
 
 struct tImageTGA {
     std::vector<unsigned char> data;

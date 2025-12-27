@@ -1,19 +1,28 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include <cstddef>
 #include <glad/glad.h>
+#include <memory>
+#include <vector>
 
+#include "IndexBuffer.hpp"
 #include "Matrix4.hpp"
 #include "Model.hpp"
-#include "vector.hpp"
-#include <signal.h>
+#include "Shader.hpp"
+#include "Texture.hpp"
+#include "VertexBuffer.hpp"
+#include "camera.hpp"
 
 constexpr char W_TITLE[] = "SCOP";
 constexpr int W_WIDTH = 1280;
 constexpr int W_HEIGHT = 720;
+
 constexpr float CAMERA_SPEED = 10.0f;
 constexpr float ROTATION_SPEED = 0.5f;
 constexpr float BLEND_SPEED = 0.02f;
+
+constexpr int MAX_CACHED_FRAMES = 50;
 
 // Ensure that if there is any GL error, it close the program and tell which GL
 // error code happened. #x -> transform into a string. For development purpose.
@@ -33,7 +42,7 @@ constexpr float BLEND_SPEED = 0.02f;
 
 // Extract OpenGL errors contained in queue.
 void GlClearError();
-// DIsplay OpenGl error code, function name and line.
+// Display OpenGl error code, function name and line.
 bool GlLogCall(const char *function, const char *file, unsigned int line);
 
 class Renderer {
@@ -45,28 +54,78 @@ class Renderer {
         Z
     };
 
-    Renderer(const std::string &filename, const std::string &texturePath);
+    Renderer();
     ~Renderer();
 
-    // Set up OpenGL state (culling, depth testing, transparency).
-    // Initialize Vertex Array, Vertex Buffer, Index Buffer, and Shader.
-    void mainLoop();
+    void Loop();
+    void Start();
+    void Update(float deltaTime);
+    void Render();
+    void Input(const SDL_Event &event, bool &run, bool &trans, RotationAxis &axis, float &blendFactor);
+    void OnTextureTransition(bool &transitioning, float &blendFactor, float &targetBlendFactor);
 
-    void handleInput(const SDL_Event &event, bool &run, bool &trans, RotationAxis &axis, float &blendFactor);
+    void SetModel(std::unique_ptr<Model> model) {
+        _model = std::move(model);
+    }
 
-    void handleTextureTrans(bool &transitioning, float &blendFactor, float &targetBlendFactor);
+    void SetTexture(std::unique_ptr<Texture> texture) {
+        _texture = std::move(texture);
+    }
 
-    void handleBackgroundColor(float &red, float &green);
+    void SetNoiseTexture(std::unique_ptr<Texture> texture) {
+        _noiseTexture = std::move(texture);
+    }
 
-    // Multiplies the accumulated rotation matrix with a new rotation matrix along
-    // the specified axis (X, Y, or Z). This allows continuous rotation of a model
-    // around a single axis using the existing coordinate system.
-    Matrix4 accumulatedMatrix(RotationAxis activeAxis, const Matrix4 &accumulatedRotationMatrix);
+    Matrix4 GetFinalMatrix(RotationAxis activeAxis, const Matrix4 &accumulatedRotationMatrix);
 
     private:
     SDL_Window *_window;
     SDL_GLContext _GLContext;
-    unsigned int _VAO;
-    Model _model;
-    std::string _texturePath;
+    Camera _camera;
+
+    bool _running = true;
+    bool _transitioning = false;
+    RotationAxis _activeAxis = RotationAxis::NONE;
+
+    float _blendFactor = 0.0f;
+    float _targetBlendFactor = 0.0f;
+
+    Matrix4 _translateToOrigin;
+    Matrix4 _translateBack;
+    Matrix4 _accumulatedRotationMatrix = Matrix4(1.0f);
+    Matrix4 _viewMatrix;
+    Matrix4 _projectionMatrix;
+
+    std::unique_ptr<VertexBuffer> _vb;
+    std::unique_ptr<VertexBuffer> _quadVB;
+
+    std::unique_ptr<IndexBuffer> _ib;
+    std::unique_ptr<IndexBuffer> _quadIB;
+
+    std::unique_ptr<Shader> _shader;
+    std::unique_ptr<Shader> _quadShader;
+
+    std::unique_ptr<Texture> _texture;
+    std::unique_ptr<Texture> _noiseTexture;
+    std::unique_ptr<Model> _model;
+
+    std::vector<std::unique_ptr<Texture>> _badAppleFrames;
+
+    unsigned int _VAO = 0;
+    unsigned int _quadVAO = 0;
+    std::size_t _currentFrame = 0;
+
+    float _frameTimer = 0.0f;
+    const float _frameDuration = 1.0f / 30.0f;
+
+    SDL_AudioSpec _spec;
+    Uint8 *_wavData = NULL;
+    Uint32 _wavDataLen = 0;
+    SDL_AudioStream *_stream = NULL;
+
+    bool _useBadAppleOnModel = false;
+    bool _useDissolve = false;
+    float _dissolveAmount = 0.0f;
+
+    void LoadFrameIfNeeded(std::size_t frameIndex);
 };

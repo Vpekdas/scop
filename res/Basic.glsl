@@ -25,7 +25,16 @@ layout(location = 0) out vec4 color;
 uniform sampler2D u_Texture;
 uniform float u_ModeFactor;
 
+uniform sampler2D u_DissolveTexture;
+uniform float u_DissolveAmount;
+uniform float u_BurnSize = 0.15f;
+uniform float u_BurnBrightness = 0.7f;
+
+const float SMALL_NUMBER = 0.0001f;
+
 in vec2 v_TexCoord;
+
+// https://agatedragon.blog/2025/10/31/creating-a-dissolve-shader/
 
 void main() {
 
@@ -41,5 +50,14 @@ void main() {
     // we will see the texture.
     vec3 finalColor = mix(baseGray, textureColor, u_ModeFactor);
 
-    color = vec4(finalColor, 1.0);
+    float value = texture(u_DissolveTexture, v_TexCoord).r;
+    value *= 0.999f;
+    float isVisible = value - u_DissolveAmount;
+    if (isVisible < 0.0f) {
+        discard;
+    } 
+    color = vec4(finalColor, 1.0f);
+    float isBurning = smoothstep(abs(u_BurnSize) + SMALL_NUMBER, 0.0f, isVisible) * step(SMALL_NUMBER, u_DissolveAmount);
+    vec3 burnColor = vec3(0.0, 1.0, 1.0);
+    color.rgb += burnColor * isBurning * u_BurnBrightness;
 }

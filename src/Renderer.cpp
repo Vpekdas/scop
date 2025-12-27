@@ -5,6 +5,7 @@
 #include "../include/VertexBuffer.hpp"
 #include "../include/camera.hpp"
 #include "../include/vector.hpp"
+#include "SDL3/SDL_init.h"
 
 #include <alloca.h>
 #include <filesystem>
@@ -28,12 +29,11 @@ bool GlLogCall(const char *function, const char *file, unsigned int line) {
     return true;
 }
 
-Renderer::Renderer(const std::string &file, const std::string &texturePath)
-    : _window(nullptr), _GLContext(nullptr), _VAO(0), _model(), _texturePath(texturePath) {
+Renderer::Renderer() : _window(nullptr), _GLContext(nullptr), _camera(0.0f, 0.0f, 10.0f) {
 
-    _model.parse(file);
+    _badAppleFrames.resize(6572);
 
-    if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO)) {
+    if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
         throw std::runtime_error(SDL_GetError());
     }
 
@@ -47,6 +47,18 @@ Renderer::Renderer(const std::string &file, const std::string &texturePath)
 
     if (!_window) {
         throw std::runtime_error(SDL_GetError());
+    }
+
+    std::filesystem::path wawPath = std::filesystem::current_path() / "assets" / "sounds" / "bad_apple.wav";
+
+    if (!SDL_LoadWAV(wawPath.c_str(), &_spec, &_wavData, &_wavDataLen)) {
+        SDL_Log("Couldn't load .wav file: %s", SDL_GetError());
+    }
+
+    /* Create our audio stream in the same format as the .wav file. It'll convert to what the audio hardware wants. */
+    _stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &_spec, NULL, NULL);
+    if (!_stream) {
+        SDL_Log("Couldn't create audio stream: %s", SDL_GetError());
     }
 
     _GLContext = SDL_GL_CreateContext(_window);
@@ -73,10 +85,8 @@ Renderer::~Renderer() {
     SDL_Quit();
 }
 
-// [&] captures all variables by reference, allowing them to be modified.
-void Renderer::handleInput(const SDL_Event &event, bool &run, bool &trans, RotationAxis &axis, float &blendFactor) {
+void Renderer::Input(const SDL_Event &event, bool &run, bool &trans, RotationAxis &axis, float &blendFactor) {
 
-    // Creates a map of function.
     static const std::unordered_map<int, std::function<void()>> keyBindings = {
         {SDLK_F1, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_POINT); }},
         {SDLK_F2, []() { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }},
@@ -91,6 +101,9 @@ void Renderer::handleInput(const SDL_Event &event, bool &run, bool &trans, Rotat
         {SDLK_Y, [&]() { axis = RotationAxis::Y; }},
         {SDLK_Z, [&]() { axis = RotationAxis::Z; }},
         {SDLK_SPACE, [&]() { axis = RotationAxis::NONE; }},
+        {SDLK_B, [&]() { _useBadAppleOnModel = !_useBadAppleOnModel; }},
+        {SDLK_P, [&]() { _useDissolve = !_useDissolve; }},
+
     };
 
     auto it = keyBindings.find(event.key.key);
@@ -99,7 +112,7 @@ void Renderer::handleInput(const SDL_Event &event, bool &run, bool &trans, Rotat
     }
 }
 
-Matrix4 Renderer::accumulatedMatrix(RotationAxis activeAxis, const Matrix4 &accumulatedRotationMatrix) {
+Matrix4 Renderer::GetFinalMatrix(RotationAxis activeAxis, const Matrix4 &accumulatedRotationMatrix) {
     Matrix4 rotationMatrix = Matrix4(1.0f);
 
     switch (activeAxis) {
@@ -119,49 +132,52 @@ Matrix4 Renderer::accumulatedMatrix(RotationAxis activeAxis, const Matrix4 &accu
     return accumulatedRotationMatrix * rotationMatrix;
 }
 
-void Renderer::handleTextureTrans(bool &transitioning, float &blendFactor, float &targetBlendFactor) {
-    if (transitioning) {
-        if (blendFactor < targetBlendFactor) {
-            blendFactor += BLEND_SPEED;
-            if (blendFactor >= targetBlendFactor) {
-                blendFactor = targetBlendFactor;
-                transitioning = false;
-            }
-        } else if (blendFactor > targetBlendFactor) {
-            blendFactor -= BLEND_SPEED;
-            if (blendFactor <= targetBlendFactor) {
-                blendFactor = targetBlendFactor;
-                transitioning = false;
-            }
-        }
+void Renderer::LoadFrameIfNeeded(std::size_t frameIndex) {
+    if (!_badAppleFrames[frameIndex]) {
+        std::filesystem::path path =
+            std::filesystem::current_path() / "assets" / "bad_apple" / (std::to_string(frameIndex + 1) + ".tga");
+
+        _badAppleFrames[frameIndex] = std::make_unique<Texture>(path);
     }
 }
 
-void Renderer::handleBackgroundColor(float &red, float &green) {
-    red = (sin(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
-    green = (cos(SDL_GetTicks() * 0.001f) + 1.0f) / 2.0f;
-    GlCall(glClearColor(red, green, 0.5f, 1.0f));
-    GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+void Renderer::Loop() {
+    Start();
+
+    Uint64 lastTime = SDL_GetPerformanceCounter();
+    float accumulatedTime = 0.0f;
+    const float frameDuration = 1.0f / 30.0f;
+
+    while (_running) {
+        Uint64 currentTime = SDL_GetPerformanceCounter();
+        float deltaTime = (currentTime - lastTime) / (float)SDL_GetPerformanceFrequency();
+        lastTime = currentTime;
+
+        accumulatedTime += deltaTime;
+
+        if (accumulatedTime >= frameDuration) {
+            _currentFrame = (_currentFrame + 1) % _badAppleFrames.size();
+            accumulatedTime -= frameDuration;
+            LoadFrameIfNeeded(_currentFrame);
+        }
+
+        Update(deltaTime);
+        Render();
+    }
 }
 
-void Renderer::mainLoop() {
-
-    // Ensure that back-facing faces are not rendered to improve performance.
+void Renderer::Start() {
     GlCall(glEnable(GL_CULL_FACE));
-
-    // Enable Depth Testing to ensure that depth is rendered correctly.
-    // Ex: A face should not be visible on top of another face if it's behind.
     GlCall(glEnable(GL_DEPTH_TEST));
     GlCall(glDepthFunc(GL_LESS));
-
-    // Enable transparency.
     GlCall(glEnable(GL_BLEND));
     GlCall(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
     GlCall(glGenVertexArrays(1, &_VAO));
     GlCall(glBindVertexArray(_VAO));
 
-    VertexBuffer vb(_model._vertexBuffer.data(), _model._vertexBuffer.size() * sizeof(float));
+    _vb = std::make_unique<VertexBuffer>(_model->_vertexBuffer.data(), _model->_vertexBuffer.size() * sizeof(float));
+    _ib = std::make_unique<IndexBuffer>(_model->_verticesIndices.data(), _model->_verticesIndices.size());
 
     // Set up vertex attribute pointers. The first 3 float are the positions.
     // Vertex positions (attribute 0) on shader.
@@ -173,77 +189,127 @@ void Renderer::mainLoop() {
     GlCall(glEnableVertexAttribArray(1));
     GlCall(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 5, (const void *)(3 * sizeof(float))));
 
-    IndexBuffer ib(_model._verticesIndices.data(), _model._verticesIndices.size());
-
-    Camera camera(0.0f, 0.0f, 10.0f);
-    Matrix4 viewMatrix = Matrix4::translation(-camera.pos);
-    Matrix4 projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
-
-    Vector3 centroid = _model._centroid;
+    _texture->Bind();
+    _noiseTexture->Bind(1);
 
     std::filesystem::path shaderPath = std::filesystem::current_path() / "res" / "Basic.glsl";
+    _viewMatrix = Matrix4::translation(-_camera.pos);
+    _projectionMatrix = Matrix4::perspective(45.0f, W_WIDTH, W_HEIGHT, 0.1f, 1000.0f);
+    _translateToOrigin = Matrix4::translation(-_model->_centroid);
+    _translateBack = Matrix4::translation(_model->_centroid);
 
-    Shader shader(shaderPath);
-    shader.Bind();
-    shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
-    shader.setUniformMat4f("u_ProjectionMatrix", projectionMatrix);
+    _shader = std::make_unique<Shader>(shaderPath);
+    _shader->Bind();
+    _shader->setUniform1i("u_Texture", 0);
+    _shader->setUniform1i("u_DissolveTexture", 0);
+    _shader->setUniformMat4f("u_ViewMatrix", _viewMatrix);
+    _shader->setUniformMat4f("u_ProjectionMatrix", _projectionMatrix);
 
-    Texture texture(_texturePath);
-    texture.Bind();
-    shader.setUniform1i("u_Texture", 0);
+    std::filesystem::path quadShaderPath = std::filesystem::current_path() / "res" / "Quad.glsl";
+    _quadShader = std::make_unique<Shader>(quadShaderPath);
+    _quadShader->Bind();
+    _quadShader->setUniform1i("u_Texture", 0);
 
-    GlCall(glBindVertexArray(0));
-    vb.Unbind();
-    ib.Unbind();
-    shader.Unbind();
+    const float quadVertices[] = {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,  -1.0f, 0.0f, 1.0f, 1.0f,
+                                  1.0f,  1.0f,  0.0f, 1.0f, 0.0f, -1.0f, 1.0f,  0.0f, 0.0f, 0.0f};
 
-    float red = 0.0f, green = 0.0f;
-    RotationAxis activeAxis = RotationAxis::NONE;
+    const unsigned int quadIndices[] = {0, 1, 2, 2, 3, 0};
 
-    Matrix4 translateToOrigin = Matrix4::translation(-centroid);
-    Matrix4 translateBack = Matrix4::translation(centroid);
-    Matrix4 accumulatedRotationMatrix = Matrix4(1.0f);
+    GlCall(glGenVertexArrays(1, &_quadVAO));
+    GlCall(glBindVertexArray(_quadVAO));
 
-    float deltaTime = 0.0f;
-    float blendFactor = 0.0f, targetBlendFactor = 0.0f;
-    bool running = true, transitioning = false;
+    _quadVB = std::make_unique<VertexBuffer>(quadVertices, sizeof(quadVertices));
+    _quadIB = std::make_unique<IndexBuffer>(quadIndices, 6);
 
-    while (running) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) {
-                running = false;
-            } else if (event.type == SDL_EVENT_KEY_DOWN) {
-                handleInput(event, running, transitioning, activeAxis, targetBlendFactor);
+    GlCall(glEnableVertexAttribArray(0));
+    GlCall(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0));
+
+    GlCall(glEnableVertexAttribArray(1));
+    GlCall(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float))));
+
+    LoadFrameIfNeeded(_currentFrame);
+
+    SDL_PutAudioStreamData(_stream, _wavData, _wavDataLen);
+    SDL_ResumeAudioStreamDevice(_stream);
+}
+
+void Renderer::Update(float deltaTime) {
+    SDL_Event event;
+
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED || event.type == SDL_EVENT_QUIT) _running = false;
+        else if (event.type == SDL_EVENT_KEY_DOWN)
+            Input(event, _running, _transitioning, _activeAxis, _targetBlendFactor);
+        else if (_stream && SDL_GetAudioStreamQueued(_stream) == 0) {
+            SDL_PutAudioStreamData(_stream, _wavData, _wavDataLen);
+        }
+    }
+
+    _camera.Move(deltaTime);
+
+    if (_transitioning) {
+        if (_blendFactor < _targetBlendFactor) {
+            _blendFactor += BLEND_SPEED;
+            if (_blendFactor >= _targetBlendFactor) {
+                _blendFactor = _targetBlendFactor;
+                _transitioning = false;
+            }
+        } else if (_blendFactor > _targetBlendFactor) {
+            _blendFactor -= BLEND_SPEED;
+            if (_blendFactor <= _targetBlendFactor) {
+                _blendFactor = _targetBlendFactor;
+                _transitioning = false;
             }
         }
-
-        Uint64 currentTime = SDL_GetPerformanceCounter();
-        deltaTime = (currentTime - lastTime) / (float)SDL_GetPerformanceFrequency();
-        lastTime = currentTime;
-
-        camera.handleInput(deltaTime);
-
-        handleTextureTrans(transitioning, blendFactor, targetBlendFactor);
-
-        handleBackgroundColor(red, green);
-
-        shader.Bind();
-        shader.setUniform1f("u_ModeFactor", blendFactor);
-
-        // Rotation for camera with arrow key.
-        viewMatrix = Matrix4::rotationY(camera.rotationAngle) * Matrix4::translation(-camera.pos);
-        shader.setUniformMat4f("u_ViewMatrix", viewMatrix);
-
-        accumulatedRotationMatrix = accumulatedMatrix(activeAxis, accumulatedRotationMatrix);
-        Matrix4 modelMatrix = translateToOrigin * accumulatedRotationMatrix * translateBack;
-        shader.setUniformMat4f("u_ModelMatrix", modelMatrix);
-
-        GlCall(glBindVertexArray(_VAO));
-        ib.Bind();
-
-        GlCall(glDrawElements(GL_TRIANGLES, _model._verticesIndices.size(), GL_UNSIGNED_INT, nullptr));
-
-        SDL_GL_SwapWindow(_window);
     }
+
+    if (_useDissolve) {
+        _dissolveAmount += deltaTime * 0.75f;
+        if (_dissolveAmount > 1.0f) _dissolveAmount = 1.0f;
+    } else {
+        _dissolveAmount -= deltaTime * 0.75f;
+        if (_dissolveAmount < 0.0f) _dissolveAmount = 0.0f;
+    }
+
+    _viewMatrix = Matrix4::rotationY(_camera.rotationAngle) * Matrix4::translation(-_camera.pos);
+    _accumulatedRotationMatrix = GetFinalMatrix(_activeAxis, _accumulatedRotationMatrix);
+}
+
+void Renderer::Render() {
+
+    if (_useBadAppleOnModel) {
+        glClearColor(0.376f, 0.647f, 0.980f, 1.0f);
+    }
+
+    GlCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+
+    Matrix4 modelMatrix = _translateToOrigin * _accumulatedRotationMatrix * _translateBack;
+
+    if (!_useBadAppleOnModel) {
+        GlCall(glDisable(GL_DEPTH_TEST));
+        GlCall(glBindVertexArray(_quadVAO));
+        _quadShader->Bind();
+        _badAppleFrames[_currentFrame]->Bind();
+        GlCall(glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr));
+        GlCall(glEnable(GL_DEPTH_TEST));
+    }
+
+    _shader->Bind();
+
+    if (_useBadAppleOnModel) {
+        _badAppleFrames[_currentFrame]->Bind();
+    } else {
+        _texture->Bind();
+    }
+
+    _shader->setUniform1f("u_ModeFactor", _blendFactor);
+    _shader->setUniform1f("u_DissolveAmount", _dissolveAmount);
+    _shader->setUniformMat4f("u_ViewMatrix", _viewMatrix);
+    _shader->setUniformMat4f("u_ModelMatrix", modelMatrix);
+
+    GlCall(glBindVertexArray(_VAO));
+    _ib->Bind();
+    GlCall(glDrawElements(GL_TRIANGLES, _model->_verticesIndices.size(), GL_UNSIGNED_INT, nullptr));
+
+    SDL_GL_SwapWindow(_window);
 }

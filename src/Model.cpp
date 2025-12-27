@@ -6,11 +6,78 @@
 #include <unordered_map>
 #include <vector>
 
-Model::Model()
+Model::Model(const std::string &filename)
     : _vertices(), _verticesIndices(), _textureCoordinates(), _textureIndices(), _vertexBuffer(), _uniqueVertices(),
       _triangleVertices(), _centroid(0, 0, 0) {
 
     _triangleVertices.reserve(3);
+
+    if (filename.find(".obj") == std::string::npos) {
+        throw std::runtime_error("Error: file is not an obj.");
+    }
+
+    std::ifstream infile(filename);
+
+    if (!infile.is_open()) {
+        const std::string error = "Error: Cannot open file: " + filename;
+        throw std::runtime_error(error);
+    }
+
+    std::string line, type;
+    std::size_t start = 0;
+
+    while (std::getline(infile, line)) {
+        start = line.find(" ");
+        type = line.substr(0, start);
+
+        if (type == "v" || type == "vt") {
+            std::istringstream iss(line.substr(start + 1));
+            std::vector<float> values;
+            float value;
+
+            while (iss >> value) {
+                values.push_back(value);
+            }
+
+            if (type == "v") {
+                const Vector3 vec3(values[0], values[1], values[2]);
+                _vertices.push_back(vec3);
+
+            } else {
+                // Subtract 1 to adapt the texture origin to the top-left corner.
+                const Vector2 vec2(values[0], 1.0 - values[1]);
+                _textureCoordinates.push_back(vec2);
+            }
+        }
+
+        else if (type == "f") {
+            // At this state, we have parsed all vertices and texture coordinates. So
+            // if the container is empty, it means we should calculate texture
+            // coordinates.
+            if (_textureCoordinates.empty()) {
+                calculateTextureCoordinates();
+            }
+
+            std::istringstream iss(line.substr(start + 1));
+            std::vector<std::string> vertices;
+            std::string vertex;
+
+            // Split each vertex in a string.
+            // Ex: f 1/1/1 5/2/1 7/3/1 3/4/1 -> vertices[0] = 1/1/1.
+            while (iss >> vertex) {
+                vertices.push_back(vertex);
+            }
+            if (vertices.size() == 3) {
+                createFaces(vertices);
+            }
+
+            else if (vertices.size() > 3) {
+                triangulateFaces(vertices);
+            }
+        }
+    }
+
+    calculateCentroid();
 }
 
 void Model::calculateCentroid() {
@@ -129,74 +196,4 @@ void Model::triangulateFaces(const std::vector<std::string> &verticesString) {
 
         createFaces(_triangleVertices);
     }
-}
-
-void Model::parse(const std::string &filename) {
-    if (filename.find(".obj") == std::string::npos) {
-        throw std::runtime_error("Error: file is not an obj.");
-    }
-
-    std::ifstream infile(filename);
-
-    if (!infile.is_open()) {
-        const std::string error = "Error: Cannot open file: " + filename;
-        throw std::runtime_error(error);
-    }
-
-    std::string line, type;
-    std::size_t start = 0;
-
-    while (std::getline(infile, line)) {
-        start = line.find(" ");
-        type = line.substr(0, start);
-
-        if (type == "v" || type == "vt") {
-            std::istringstream iss(line.substr(start + 1));
-            std::vector<float> values;
-            float value;
-
-            while (iss >> value) {
-                values.push_back(value);
-            }
-
-            if (type == "v") {
-                const Vector3 vec3(values[0], values[1], values[2]);
-                _vertices.push_back(vec3);
-
-            } else {
-                // Subtract 1 to adapt the texture origin to the top-left corner.
-                const Vector2 vec2(values[0], 1.0 - values[1]);
-                _textureCoordinates.push_back(vec2);
-            }
-        }
-
-        else if (type == "f") {
-            // At this state, we have parsed all vertices and texture coordinates. So
-            // if the container is empty, it means we should calculate texture
-            // coordinates.
-            if (_textureCoordinates.empty()) {
-                calculateTextureCoordinates();
-            }
-
-            std::istringstream iss(line.substr(start + 1));
-            std::vector<std::string> vertices;
-            std::string vertex;
-
-            // Split each vertex in a string.
-            // Ex: f 1/1/1 5/2/1 7/3/1 3/4/1 -> vertices[0] = 1/1/1.
-            while (iss >> vertex) {
-                vertices.push_back(vertex);
-            }
-            if (vertices.size() == 3) {
-                createFaces(vertices);
-            }
-
-            // Apply fan triangulation for polygons with more than 3 vertices.
-            else if (vertices.size() > 3) {
-                triangulateFaces(vertices);
-            }
-        }
-    }
-
-    calculateCentroid();
 }

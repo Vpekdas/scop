@@ -12,5 +12,5 @@ struct Camera {
         pos.z = z;
     }
 
-    void handleInput(float deltaTime);
+    void Move(float deltaTime);
 };
