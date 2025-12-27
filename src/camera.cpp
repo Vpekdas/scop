@@ -1,7 +1,7 @@
 #include "../include/camera.hpp"
 #include "../include/Renderer.hpp"
 
-void Camera::handleInput(float deltaTime) {
+void Camera::Move(float deltaTime) {
     const bool *keystates = SDL_GetKeyboardState(nullptr);
 
     if (keystates[SDL_SCANCODE_W]) pos.z -= CAMERA_SPEED * deltaTime;

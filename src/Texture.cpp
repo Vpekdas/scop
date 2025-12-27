@@ -1,4 +1,5 @@
 #include "../include/Texture.hpp"
+#include "../include/Renderer.hpp"
 #include <fstream>
 #include <stdexcept>
 #include <vector>
