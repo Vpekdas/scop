@@ -1,5 +1,5 @@
-#include "../include/VertexBuffer.hpp"
-#include "../include/Renderer.hpp"
+#include "renderer/opengl/VertexBuffer.hpp"
+#include "renderer/opengl/RendererOpenGL.hpp"
 
 VertexBuffer::VertexBuffer(const void *data, unsigned int size) {
     GlCall(glGenBuffers(1, &_rendererId));
