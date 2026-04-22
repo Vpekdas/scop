@@ -1,12 +1,14 @@
 #pragma once
 
-#include "../include/vector.hpp"
+#include "math/vector.hpp"
 
-struct Camera {
+struct Camera
+{
     Vector3 pos;
     float rotationAngle = 0.0f;
 
-    Camera(float x, float y, float z) {
+    Camera(float x, float y, float z)
+    {
         pos.x = x;
         pos.y = y;
         pos.z = z;

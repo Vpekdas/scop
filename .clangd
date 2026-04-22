@@ -1,0 +1,14 @@
+CompileFlags:
+  Add:
+    - -Ithird_party/SDL/include
+    - -Ithird_party/glad/include
+    - -Iinclude
+    - -std=c++20
+    - -Wall
+    - -Wextra
+    - -Werror
+InlayHints:
+  Enabled: Yes
+  DeducedTypes: Yes
+  ParameterNames: Yes
+  Designators: Yes

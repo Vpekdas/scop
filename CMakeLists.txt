@@ -1,40 +1,83 @@
 cmake_minimum_required(VERSION 3.22)
-project(scop-project)
+project(scop-project LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(COMMON_WARN_FLAGS "-Wall -Wextra -Werror")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_FLAGS_DEBUG "${COMMON_WARN_FLAGS} -g")
-set(CMAKE_CXX_FLAGS_RELEASE "${COMMON_WARN_FLAGS} -O3")
+option(RENDERER_OPENGL "Enable OpenGL renderer" ON)
+option(RENDERER_METAL "Enable Metal renderer" OFF)
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the build type." FORCE)
-endif()
+set(APP_SOURCES
+    src/app/main.cpp
+    src/app/Application.cpp
+)
 
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+set(RENDERER_OPENGL_SOURCES
+    src/core/renderer/opengl/RendererOpenGL.cpp
+    src/core/renderer/opengl/ShaderOpenGL.cpp
+    src/core/renderer/opengl/TextureOpenGL.cpp
+    src/core/renderer/opengl/VertexBuffer.cpp
+    src/core/renderer/opengl/IndexBuffer.cpp
+)
 
-if(APPLE)
-    add_definitions(-DUSE_METAL)
-    message(STATUS "Metal backend enabled for Apple platform")
-else()
-    add_definitions(-DUSE_OPENGL)
-    message(STATUS "OpenGL backend enabled")
-endif()
-
-add_executable(scop
+set(CORE_SOURCES
     src/camera.cpp
-    src/IndexBuffer.cpp
-    src/main.cpp
     src/Model.cpp
-    src/Renderer.cpp
-    src/Shader.cpp
-    src/Texture.cpp
-    src/vector.cpp
-    src/VertexBuffer.cpp
+    src/math/vector.cpp
+    src/core/Window.cpp
+    src/core/AudioPlayer.cpp
+)
+
+set(EXTERNAL_SOURCES
     third_party/glad/src/glad.c
 )
+
+
+set(ASSET_ZIP ${CMAKE_SOURCE_DIR}/assets/textures/Bad_Apple.zip)
+set(ASSET_DIR ${CMAKE_BINARY_DIR}/assets/)
+
+add_custom_target(copy_assets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/assets
+        ${CMAKE_BINARY_DIR}/assets
+)
+
+add_custom_target(extract_assets ALL
+    COMMAND ${CMAKE_COMMAND} -E tar -xf
+        ${CMAKE_BINARY_DIR}/assets/textures/Bad_Apple.zip
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/assets/textures
+    DEPENDS copy_assets
+)
+
+add_executable(scop
+    ${APP_SOURCES}
+    ${CORE_SOURCES}
+    ${EXTERNAL_SOURCES}
+)
+
+target_compile_options(scop PRIVATE
+    $<$<CONFIG:Debug>: -Wall -Wextra -Werror -g>
+    $<$<CONFIG:Release>: -Wall -Wextra -Werror -O3>
+)
+
+if(RENDERER_OPENGL)
+    target_compile_definitions(scop PRIVATE USE_OPENGL=1)
+    target_sources(scop PRIVATE
+        ${RENDERER_OPENGL_SOURCES}
+    )
+endif()
+
+if(RENDERER_METAL)
+    target_compile_definitions(scop PRIVATE USE_METAL=1)
+endif()
+
+target_compile_definitions(scop PRIVATE
+    ASSET_DIR="${CMAKE_BINARY_DIR}/assets"
+)
+
+add_dependencies(scop extract_assets)
 
 add_subdirectory(third_party/SDL)
 
