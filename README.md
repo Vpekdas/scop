@@ -16,7 +16,7 @@ https://github.com/user-attachments/assets/f34b98ba-7047-4418-b626-537d97f572d0
 
 ## Description
 
-Scop is a project from the 42 Post-Common Core curriculum, designed to introduce students to low-level graphics programming using APIs like Vulkan or OpenGL. 
+Scop is a project from the 42 Post-Common Core curriculum, designed to introduce students to low-level graphics programming using APIs like Vulkan, Metal or OpenGL. 
 
 ### Purpose
 
@@ -24,35 +24,68 @@ The objective is to create a simple 3D OBJ renderer that displays textures and c
 
 ## Controls
 
-| **Key** | **Action** |
-|:-------:|------------|
-| `X`     | Rotate model around X-axis |
-| `Y`     | Rotate model around Y-axis |
-| `Z`     | Rotate model around Z-axis |
-| `Space` | Pause rotation |
-| `→`     | Rotate right |
-| `←`     | Rotate left |
-| `T`     | Enable texture mode |
-| `F`     | Enable face mode |
-| `F1`    | Switch to point mode |
-| `F2`    | Switch to line mode |
-| `F3`    | Switch to fill mode |
-| `ESC` or click the `X` (top-right corner) | Exit |
+### Camera Movement
+| Key        | Action |
+|:----------:|--------|
+| `W`        | Move camera forward |
+| `S`        | Move camera backward |
+| `A`        | Move camera left |
+| `D`        | Move camera right |
+| `←`        | Rotate camera left |
+| `→`        | Rotate camera right |
+
+### Model Controls
+| Key   | Action |
+|:-----:|--------|
+| `X`   | Set rotation axis to X |
+| `Y`   | Set rotation axis to Y |
+| `Z`   | Set rotation axis to Z |
+| `Space` | Stop model rotation |
+
+---
+
+### Rendering Modes
+| Key | Action |
+|:---:|--------|
+| `F1` | Point mode |
+| `F2` | Wireframe mode |
+| `F3` | Fill mode |
+
+---
+
+### Effects
+| Key | Action |
+|:---:|--------|
+| `F4` | Apply texture |
+| `F5` | Apply dissolve effect |
+| `F6` | Play Bad Apple |
+
+---
+
+### Audio
+| Key | Action |
+|:---:|--------|
+| P   | Play / Pause audio |
+
+
+### Global
+| Key | Action |
+|:---:|--------|
+| ESC | Exit application |
 
 ### Technologies used
 
-- C++: The primary programming language for the project.
-- CMake: A tool for managing the build process.
-- GLSL: The shading language used for writing shaders.
-- OpenGL: The graphics API for rendering the 3D model and textures.
+- C++
+- CMake
+- GLSL
+- OpenGL
+- SDL3
 
 ### Challenges and Future Features
 
-The main challenges in this project were learning how graphics APIs, like OpenGL, work. Initially, I struggled to understand why triangles are the preferred primitive for rendering. The difficulty increased when I had to render the triangle by creating an index buffer, vertex arrays, and setting up vertex attribute pointers. After that, I moved on to creating a cube and implementing rotations along all three axes.
+The main challenge was understanding how the GPU renders pixels, and why triangles are important. Then I had to learn what OpenGL is and how to use it. Of course, I had to learn some basic mathematics, such as matrices, since matrix operations are not commutative. And lastly, how to use CMake.
 
-Before tackling these challenges, I also had to learn some basic mathematics, such as understanding matrices, how they work, and how they are used in 3D graphics.
-
-I'm not planning to add new features.
+I'm planning to add Metal and Vulkan backends later.
 
 ## Installation
 
@@ -73,12 +106,12 @@ mkdir build
 
 - Generate build files with CMake:
 ```bash
-cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=RELEASE
+cmake -S . -B build
 ```
 
 - Build the project using CMake:
 ```bash
-cmake --build build/Release --config Release
+cmake --build build --config Release
 ```
 
 > [!NOTE]
