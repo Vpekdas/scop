@@ -1,5 +1,5 @@
-#include "../include/IndexBuffer.hpp"
-#include "../include/Renderer.hpp"
+#include "renderer/opengl/IndexBuffer.hpp"
+#include "renderer/opengl/RendererOpenGL.hpp"
 
 IndexBuffer::IndexBuffer(const unsigned int *data, unsigned int count) : _count(count) {
     GlCall(glGenBuffers(1, &_rendererId));
