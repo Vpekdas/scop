@@ -1,3 +1,5 @@
+#include <cstdio>
+#include <print>
 #include "app/Application.hpp"
 #include <filesystem>
 
@@ -5,7 +7,7 @@ int main(int ac, char** av)
 {
     if (ac != 3)
     {
-        std::cerr << "Error: Usage is <scop> <.obj> <texture.tga>" << "\n";
+        std::println(stderr, "Error: Usage is <scop> <.obj> <texture.tga>");
         return 1;
     }
 
@@ -13,7 +15,7 @@ int main(int ac, char** av)
     {
         Application app(1280, 720, "scop");
 
-        app.LoadModel(std::filesystem::path(av[1]));
+        app.LoadMesh(std::filesystem::path(av[1]));
         app.LoadTexture(std::filesystem::path(av[2]));
         app.LoadNoiseTexture(std::filesystem::path(ASSET_DIR) / "textures" / "solidnoise.tga");
 
@@ -21,6 +23,6 @@ int main(int ac, char** av)
     }
     catch (std::exception& ex)
     {
-        std::cerr << ex.what() << "\n";
+        std::println(stderr, "{}", ex.what());
     }
 }

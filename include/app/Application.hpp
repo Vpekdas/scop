@@ -1,15 +1,12 @@
 #pragma once
 
-#include "AudioPlayer.hpp"
-#include "Model.hpp"
+#include "Mesh.hpp"
 #include "Window.hpp"
 #include "camera.hpp"
 #include "renderer/IRenderer.hpp"
 #include <memory>
 
-constexpr double BAD_APPLE_FPS = 30.0;
-
-class Model;
+class Mesh;
 
 class Application
 {
@@ -21,9 +18,9 @@ class Application
     void Run();
     void ProcessInput() {};
 
-    inline void LoadModel(const std::string& path)
+    inline void LoadMesh(const std::string& path)
     {
-        _renderer->LoadModel(std::make_unique<Model>(path));
+        _renderer->LoadMesh(std::make_unique<Mesh>(path));
     }
 
     inline void LoadTexture(const std::string& path)
@@ -41,7 +38,6 @@ class Application
     private:
     std::unique_ptr<Window> _window;
     std::unique_ptr<IRenderer> _renderer;
-    std::unique_ptr<AudioPlayer> _audioPlayer;
     Camera _camera;
 
     bool _isRunning = true;

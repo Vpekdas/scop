@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "ITexture.hpp"
-#include "Model.hpp"
+#include "Mesh.hpp"
 #include "Window.hpp"
 #include "camera.hpp"
 #include "math/Matrix4.hpp"
@@ -17,12 +17,10 @@
 #include "ShaderOpenGL.hpp"
 #include "TextureOpenGL.hpp"
 #include "VertexBuffer.hpp"
-#include <vector>
 
 constexpr float CAMERA_SPEED = 10.0f;
 constexpr float ROTATION_SPEED = 0.5f;
 constexpr float BLEND_SPEED = 0.02f;
-constexpr float FRAME_TIME = 1.0f / 30.0f;
 
 // Ensure that if there is any GL error, it close the program and tell which GL
 // error code happened. #x -> transform into a string. For development purpose.
@@ -67,9 +65,9 @@ class RendererOpenGL : public IRenderer
 
     void SwapBuffers() override;
 
-    inline void LoadModel(std::unique_ptr<Model> model) override
+    inline void LoadMesh(std::unique_ptr<Mesh> mesh) override
     {
-        _model = std::move(model);
+        _mesh = std::move(mesh);
     }
 
     inline void LoadTexture(std::unique_ptr<ITexture> texture) override
@@ -80,11 +78,6 @@ class RendererOpenGL : public IRenderer
     inline void LoadNoiseTexture(std::unique_ptr<ITexture> texture) override
     {
         _noiseTexture = std::move(texture);
-    }
-
-    inline void PlayBadApple() override
-    {
-        _useBadAppleOnModel = !_useBadAppleOnModel;
     }
 
     inline void ApplyDissolve() override
@@ -111,16 +104,6 @@ class RendererOpenGL : public IRenderer
         return std::make_unique<TextureOpenGL>(path);
     }
 
-    virtual void SetFrame(size_t frame) override
-    {
-        if (frame >= _badAppleFrames.size())
-        {
-            frame = _badAppleFrames.size() - 1;
-        }
-        _currentFrame = frame;
-        LoadFrameIfNeeded(_currentFrame);
-    }
-
     Matrix4 GetFinalMatrix(RotationAxis activeAxis, const Matrix4& accumulatedRotationMatrix);
 
     private:
@@ -137,32 +120,23 @@ class RendererOpenGL : public IRenderer
     Window& _window;
 
     std::unique_ptr<VertexBuffer> _vb;
-    std::unique_ptr<VertexBuffer> _quadVB;
 
     std::unique_ptr<IndexBuffer> _ib;
-    std::unique_ptr<IndexBuffer> _quadIB;
 
-    std::unique_ptr<ShaderOpenGL> _shader;
-    std::unique_ptr<ShaderOpenGL> _quadShader;
+    std::unique_ptr<ShaderOpenGL> _textureShader;
+    std::unique_ptr<ShaderOpenGL> _dissolveShader;
 
     std::unique_ptr<ITexture> _texture;
     std::unique_ptr<ITexture> _noiseTexture;
-    std::vector<std::unique_ptr<ITexture>> _badAppleFrames;
 
-    std::unique_ptr<Model> _model;
+    std::unique_ptr<Mesh> _mesh;
 
     uint32_t _VAO = 0;
-    uint32_t _quadVAO = 0;
-    uint32_t _currentFrame = 0;
 
-    float _frameTimer = 0.0f;
     float _dissolveAmount = 0.0f;
     float _blendFactor = 0.0f;
     float _targetBlendFactor = 0.0f;
 
-    bool _useBadAppleOnModel = false;
     bool _useDissolve = false;
     bool _transitioning = false;
-
-    void LoadFrameIfNeeded(std::size_t frameIndex);
 };

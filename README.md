@@ -58,15 +58,8 @@ The objective is to create a simple 3D OBJ renderer that displays textures and c
 |:---:|--------|
 | `F4` | Apply texture |
 | `F5` | Apply dissolve effect |
-| `F6` | Play Bad Apple |
 
 ---
-
-### Audio
-| Key | Action |
-|:---:|--------|
-| P   | Play / Pause audio |
-
 
 ### Global
 | Key | Action |
