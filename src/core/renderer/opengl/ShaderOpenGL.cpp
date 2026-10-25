@@ -1,3 +1,5 @@
+#include <cstdio>
+#include <print>
 #include "renderer/opengl/ShaderOpenGL.hpp"
 #include "renderer/opengl/RendererOpenGL.hpp"
 #include <alloca.h>
@@ -30,8 +32,8 @@ unsigned int ShaderOpenGL::CompileShader(unsigned int type, const std::string& s
         GlCall(glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length));
         char* message = (char*)alloca(length * sizeof(char));
         GlCall(glGetShaderInfoLog(id, length, &length, message));
-        std::cerr << "Failed to compile shader." << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << "\n";
-        std::cerr << message << "\n";
+        std::println(stderr, "Failed to compile shader.{}", type == GL_VERTEX_SHADER ? "vertex" : "fragment");
+        std::println(stderr, "{}", message);
         GlCall(glDeleteShader(id));
         return 0;
     }
@@ -124,7 +126,7 @@ int ShaderOpenGL::GetUniformLocation(const std::string& name)
     {
         // Not having a uniform is not critical, so no need to throw an exception.
         // Model will still be displayed.
-        std::cerr << "Warning: uniform '" << name << "' doesn't exist!" << "\n";
+        std::println(stderr, "Warning: uniform '{}' doesn't exist!", name);
     }
     _uniformCache[name] = location;
     return location;

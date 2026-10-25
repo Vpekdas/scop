@@ -1,14 +1,17 @@
 #include "app/Application.hpp"
-#include "AudioPlayer.hpp"
 #include <memory>
 
 #ifdef USE_OPENGL
 #include "renderer/opengl/RendererOpenGL.hpp"
 #endif
 
+#ifdef USE_VULKAN
+#include "renderer/vulkan/RendererVulkan.hpp"
+#endif
+
 Application::Application(uint32_t width, uint32_t height, const char* title) : _camera(0.0f, 0.0f, 10.0f)
 {
-    if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO | SDL_INIT_AUDIO))
+    if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO))
     {
         throw std::runtime_error(SDL_GetError());
     }
@@ -24,15 +27,18 @@ Application::Application(uint32_t width, uint32_t height, const char* title) : _
 
     flags = SDL_WINDOW_OPENGL;
 
+#elif defined(USE_VULKAN)
+    flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
+
 #endif
 
     _window = std::make_unique<Window>(width, height, title, flags);
 
-    std::filesystem::path wawPath = std::filesystem::path(ASSET_DIR) / "sounds" / "bad_apple.wav";
-    _audioPlayer = std::make_unique<AudioPlayer>(wawPath);
-
 #ifdef USE_OPENGL
     _renderer = std::make_unique<RendererOpenGL>(*_window);
+#endif
+#ifdef USE_VULKAN
+    _renderer = std::make_unique<RendererVulkan>(*_window);
 #endif
 }
 
@@ -62,6 +68,11 @@ void Application::Run()
             {
                 _isRunning = false;
             }
+            else if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED &&
+                     event.window.windowID == SDL_GetWindowID(_window->GetSDLWindow()))
+            {
+                _renderer->OnWindowResized();
+            }
             else if (event.type == SDL_EVENT_KEY_DOWN)
             {
                 switch (event.key.key)
@@ -84,9 +95,6 @@ void Application::Run()
                 case SDLK_F5:
                     _renderer->ApplyDissolve();
                     break;
-                case SDLK_F6:
-                    _renderer->PlayBadApple();
-                    break;
                 case SDLK_X:
                     _renderer->SetRotationAxis(RotationAxis::X);
                     break;
@@ -99,22 +107,9 @@ void Application::Run()
                 case SDLK_SPACE:
                     _renderer->SetRotationAxis(RotationAxis::NONE);
                     break;
-                case SDLK_P:
-                    _audioPlayer->GetIsPlaying() ? _audioPlayer->Stop() : _audioPlayer->Play();
-                    break;
                 }
             }
         }
-
-        size_t frame = 0;
-
-        if (_audioPlayer->GetIsPlaying())
-        {
-            double time = _audioPlayer->GetPlaybackTime();
-            frame = static_cast<size_t>(time * BAD_APPLE_FPS);
-        }
-
-        _renderer->SetFrame(frame);
 
         _camera.Move(deltaTime);
         _renderer->Update(deltaTime, _camera);
